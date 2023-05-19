@@ -1,13 +1,19 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import L from 'leaflet'
+import DataEndpoint from '@/data_endpoint';
+import LeafletMap from '@/leaflet/map';
 
-onMounted(() => {
-  var map = L.map('map').setView([51.505, -0.09], 13);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-  }).addTo(map); 
+onMounted(async () => {
+  let endpoint = new DataEndpoint("localhost");
+  await endpoint.get_routes(4399230).then((routes => {
+
+    let map = new LeafletMap("map");
+
+    for (let route of routes) {
+      map.add_polyline(route.polyline);
+    }
+  }));
+
 })
 </script>
 
