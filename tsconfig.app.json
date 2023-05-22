@@ -9,6 +9,6 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "types": ["leaflet"]
+    "types": ["leaflet", "bootstrap"]
   }
 }

@@ -1,8 +1,9 @@
+import type Activity from "./data_types/activity";
 import type Route from "./data_types/route";
 import * as Realm from "realm-web";
 const {
     BSON: { ObjectId },
-  } = Realm;
+} = Realm;
 
 export default class DataEndpoint {
     is_local: boolean;
@@ -15,11 +16,11 @@ export default class DataEndpoint {
         if (!this.is_local) {
             this.authenticate_mongo();
         } else {
-            this.url = "http://localhost:8000/";
+            this.url = "http://localhost:8000";
         }
     }
 
-    fetch_data<T>(path: string): Promise<T> {
+    get_data<T>(path: string): Promise<T> {
         return fetch(this.url + path, {
             mode: 'cors',
         })
@@ -31,9 +32,30 @@ export default class DataEndpoint {
             });
     }
 
+    post_data<T>(path: string, body?: any): Promise<T> {
+        return fetch(this.url + path, {
+            mode: 'cors',
+            method: "POST",
+            body: JSON.stringify(body)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(response.statusText)
+                }
+                return response.json() as Promise<T>
+            });
+    }
 
-    async get_routes(ath_id: number) : Promise<Route[]> {
-        return this.fetch_data('/routes/' + ath_id);        
+    async get_routes(ath_id: number): Promise<Route[]> {
+        return this.get_data('/routes/' + ath_id);
+    }
+
+    async get_activities_with_id(ids: number[]): Promise<Activity[]> {
+        return this.post_data('/query_activities', { "_id": { "$in": ids } });
+    }
+
+    async query_activities(query: any): Promise<Activity[]> {
+        return this.post_data('/query_activities', query);
     }
 
     private async authenticate_mongo() {
@@ -41,7 +63,6 @@ export default class DataEndpoint {
         const credentials = Realm.Credentials.anonymous();
         try {
             const user = await app.logIn(credentials);
-            console.log(user.id);
 
             if (app.currentUser) {
                 const mongo = app.currentUser.mongoClient("mongodb-atlas");

@@ -17,14 +17,19 @@ export default class LeafletMap {
         }).addTo(this.map);
     }
 
-    public get_map() {
+    public get_map(): L.Map {
+        return this.map;
+    }
 
+    public center_view(polyline: string) {
+        let gps_points = PolylineDecoder.decodePolyline(polyline);
+        this.map.panTo((gps_points.getLatLngs() as LatLng[])[0], { animate: false, duration: 1.5, easeLinearity: 1  });
     }
 
     public add_polyline(polyline: string) {
         let gps_points = PolylineDecoder.decodePolyline(polyline);
-        
-        gps_points.addTo(this.map);        
+
+        gps_points.addTo(this.map);
 
         if (!this.centered) {
             this.map.setView((gps_points.getLatLngs() as LatLng[])[0], 13);

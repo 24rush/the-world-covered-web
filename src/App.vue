@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import MapWorld from './components/MapWorld.vue'
+import 'bootstrap' 
 </script>
 
 <template>
