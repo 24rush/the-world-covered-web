@@ -30,10 +30,19 @@ function onPolylineHovered(id: number, state: boolean) {
 }
 
 function onRouteSelected(route: Route) {
+    map.hide_all();
+    map.show_only(route.master_activity._id);
+    hoverPolylineOfId(route.master_activity._id, true);
+    map.center_view(route.master_activity._id);
 }
 
 function onRouteHovered(route: Route) {
-    hoverPolylineOfId(route.master_activity._id, true);
+    //hoverPolylineOfId(route.master_activity._id, true);
+}
+
+function onRouteUnhovered(activity: Activity) {
+    //map.show_all();
+    hoverPolylineOfId(activity._id, false);
 }
 
 function onActivitySelected(activity: Activity) {
@@ -41,14 +50,10 @@ function onActivitySelected(activity: Activity) {
 }
 
 function onActivityHovered(activity: Activity) {
-    hoverPolylineOfId(activity._id, true);
+    //hoverPolylineOfId(activity._id, true);
 }
 
 function onActivityUnhovered(activity: Activity) {
-    hoverPolylineOfId(activity._id, false);
-}
-
-function onRouteUnhovered(activity: Activity) {
     hoverPolylineOfId(activity._id, false);
 }
 
@@ -91,11 +96,11 @@ async function onRouteTypeRequested(type: String) {
             for (let route of db_routes) {
                 let query = query_gen.acts_in_ids([route.master_activity_id]);
                 endpoint.query_activities(query).then(activities => {
-                    let activity = activities[0];
-                    route.master_activity = activity;
+                    let master_activity = activities[0];
+                    route.master_activity = master_activity;
                     routes.push(route);
 
-                    add_polyline(activity._id, activity.map.polyline);
+                    add_polyline(master_activity._id, master_activity.map.polyline);
                 })
             }
         });

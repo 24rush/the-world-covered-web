@@ -23,10 +23,14 @@ class Style {
     weight: number = 3;
 }
 
-const HOVER_STYLE : Style = {
+const HOVER_STYLE: Style = {
     color: '#E53935',
     weight: 0
 };
+
+class PolylineCtx {
+    constructor(public polyline: L.Polyline, public addedToMap: boolean) { }
+}
 
 export type HoverCbk = (id: number, state: boolean) => void;
 type PolylineHandlerFnc = (id: number, polyline: L.Polyline) => void;
@@ -34,7 +38,7 @@ type PolylineHandlerFnc = (id: number, polyline: L.Polyline) => void;
 export default class LeafletMap {
     map: L.Map;
     centered: boolean = false;
-    elem_id_to_polyline: Map<number, L.Polyline> = new Map();
+    elem_id_to_polyline: Map<number, PolylineCtx> = new Map();
     elem_id_to_style: Map<number, Style> = new Map();
     colors_used: Array<string> = new Array();
     hover_cbk: HoverCbk | undefined;
@@ -59,7 +63,7 @@ export default class LeafletMap {
                 let style = this.elem_id_to_style.get(poly[0]);
                 if (style) style.weight = weight_for_zoom;
 
-                poly[1].setStyle({"weight": weight_for_zoom});
+                poly[1].polyline.setStyle({ "weight": weight_for_zoom });
             }
         });
     }
@@ -82,7 +86,7 @@ export default class LeafletMap {
     public add_polyline(id: number, polyline: string): L.Polyline {
         let self = this;
         let gps_points = PolylineDecoder.decodePolyline(polyline);
-        this.elem_id_to_polyline.set(id, gps_points);
+        this.elem_id_to_polyline.set(id, new PolylineCtx(gps_points, true));
 
         let default_style = {
             "weight": 6,
@@ -115,6 +119,35 @@ export default class LeafletMap {
         return gps_points
     }
 
+    public show_only(id: number) {
+        let polyCtx = this.elem_id_to_polyline.get(id);
+
+        if (polyCtx) {
+            polyCtx.addedToMap = true;
+            polyCtx.polyline.addTo(this.map);
+        }
+    }
+
+    public hide_all() {
+        for (let elem of this.elem_id_to_polyline) {
+            if (elem[1].addedToMap == false)
+                continue;
+
+            elem[1].addedToMap = false;
+            elem[1].polyline.removeFrom(this.map);
+        }
+    }
+
+    public show_all() {
+        for (let elem of this.elem_id_to_polyline) {
+            if (elem[1].addedToMap)
+                continue;
+
+            elem[1].addedToMap = true;
+            elem[1].polyline.addTo(this.map);
+        }
+    }
+
     public highlight_elem_id(elem_id: number) {
         if (this.last_hovered_item_id == elem_id)
             return;
@@ -129,21 +162,21 @@ export default class LeafletMap {
     }
 
     private do_with_elem_id(elem_id: number, handler: PolylineHandlerFnc) {
-        let polyline = this.elem_id_to_polyline.get(elem_id);
+        let polyCtx = this.elem_id_to_polyline.get(elem_id);
 
-        if (polyline) {
-            handler.bind(this, elem_id, polyline)();
+        if (polyCtx) {
+            handler.bind(this, elem_id, polyCtx.polyline)();
         }
     }
 
-    private highlight_polyline(id: number, polyline: L.Polyline) {        
+    private highlight_polyline(id: number, polyline: L.Polyline) {
         let curr_style = this.elem_id_to_style.get(id);
 
         if (curr_style) {
-            polyline.bringToFront();   
+            polyline.bringToFront();
             polyline.setStyle(HOVER_STYLE);
-            polyline.setStyle({'weight' : curr_style.weight * 1.5})
-        }        
+            polyline.setStyle({ 'weight': curr_style.weight * 1.5 })
+        }
     }
 
     private unhighlight_polyline(id: number, polyline: L.Polyline) {
@@ -151,7 +184,7 @@ export default class LeafletMap {
 
         if (prev_style) {
             polyline.setStyle(prev_style);
-            polyline.setStyle({'weight' : prev_style.weight * 1 / 1.5})            
+            polyline.setStyle({ 'weight': prev_style.weight * 1 / 1.5 })
         }
     }
 }
