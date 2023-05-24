@@ -6,10 +6,12 @@ import Route from '@/data_types/route';
 import RouteList from './RouteList.vue'
 import ActivitiesList from './ActivitiesList.vue';
 import QueryGen from '@/query_gen';
+
 import type Activity from '@/data_types/activity';
 
 var routes = reactive<Route[]>([]);
 var activities = reactive<Activity[]>([]);
+var hovered_id = ref(0);
 
 var map: LeafletMap;
 var endpoint: DataEndpoint;
@@ -18,85 +20,109 @@ var query_gen: QueryGen = new QueryGen(4399230);
 onMounted(async () => {
     endpoint = new DataEndpoint("localhost");
     map = new LeafletMap("map");
+    map.register_hovered_handler(onPolylineHovered);
 
     onRouteTypeRequested("most_ridden");
 })
+
+function onPolylineHovered(id: number, state: boolean) {
+    hovered_id.value = state ? id : 0;
+}
 
 function onRouteSelected(route: Route) {
 }
 
 function onRouteHovered(route: Route) {
-    map.center_view(route.master_activity.map.polyline);
+    hoverPolylineOfId(route.master_activity._id, true);
 }
 
 function onActivitySelected(activity: Activity) {
+    hoverPolylineOfId(activity._id, true);
 }
 
 function onActivityHovered(activity: Activity) {
-    map.center_view(activity.map.polyline);
+    hoverPolylineOfId(activity._id, true);
+}
+
+function onActivityUnhovered(activity: Activity) {
+    hoverPolylineOfId(activity._id, false);
+}
+
+function onRouteUnhovered(activity: Activity) {
+    hoverPolylineOfId(activity._id, false);
+}
+
+function hoverPolylineOfId(id: number, hover: boolean) {
+    if (hover) {
+        map.highlight_elem_id(id);
+        map.center_view(id);
+    }
+    else {        
+        map.unhighlight_elem_id(id);
+    }
+}
+
+function get_query(type: String): String {
+    switch (type) {
+        case "with_friends":
+            return query_gen.acts_with_friends();
+        case "abroad":
+            return query_gen.act_abroad()
+        case "epic_rides":
+            return query_gen.act_epic_rides()
+        case "best_bang":
+            return query_gen.act_best_bang()
+        default:
+            console.log("WARNING: Unknown route type")
+            return "";
+    }
+}
+
+function add_polyline(id: number, polyline: string) {
+    map.add_polyline(id, polyline);
 }
 
 async function onRouteTypeRequested(type: String) {
     activities.splice(0);
     routes.splice(0);
 
-    switch (type) {
-        case "most_ridden":
-            await endpoint.get_routes(4399230).then(db_routes => {
-                for (let route of db_routes) {
-                    let query = query_gen.acts_in_ids([route.master_activity_id]);
-                    console.log(query);
-                    endpoint.query_activities(query).then(activities => {
-                        let activity = activities[0];
-                        route.master_activity = activity;
-                        routes.push(route);
+    if (type === "most_ridden") {
+        await endpoint.get_routes(4399230).then(db_routes => {
+            for (let route of db_routes) {
+                let query = query_gen.acts_in_ids([route.master_activity_id]);
+                endpoint.query_activities(query).then(activities => {
+                    let activity = activities[0];
+                    route.master_activity = activity;
+                    routes.push(route);
 
-                        map.add_polyline(activity.map.polyline);
-                    })
-                }
-            });
-            break;
+                    add_polyline(activity._id, activity.map.polyline);
+                })
+            }
+        });
+    }
+    else {
+        let query = get_query(type);
+        if (!query) return;
 
-        case "with_friends":
-            await endpoint.query_activities(query_gen.acts_with_friends()).then(acts => {
-                for (let activity of acts) {
-                    activities.push(activity);
-                    map.add_polyline(activity.map.polyline);
-                }
-            })
-            break;
+        await endpoint.query_activities(query).then(acts => {
+            for (let activity of acts) {
+                activities.push(activity);
 
-            case "abroad":
-            await endpoint.query_activities(query_gen.act_abroad()).then(acts => {
-                for (let activity of acts) {
-                    activities.push(activity);
-                    map.add_polyline(activity.map.polyline);
-                }
-            })
-            break;
-
-            case "epic_rides":
-            await endpoint.query_activities(query_gen.act_epic_rides()).then(acts => {
-                for (let activity of acts) {
-                    activities.push(activity);
-                    map.add_polyline(activity.map.polyline);
-                }
-            })
-            break;
-
-        default:
-            break;
+                add_polyline(activity._id, activity.map.polyline);
+            }
+        });
     }
 }
-
 </script>
 
 <template>
     <RouteList class="absolute routeList" style="z-index: 2;" v-bind:routes="routes" v-on:selectedRoute="onRouteSelected"
-        v-on:hoveredRoute="onRouteHovered"></RouteList>
+        v-on:hoveredRoute="onRouteHovered" v-bind:hovered_id="hovered_id" 
+         v-on:unhoveredRoute="onRouteUnhovered"></RouteList>
 
     <ActivitiesList class="absolute routeList" style="z-index: 2;" v-bind:activities="activities"
-        v-on:selectedActivity="onActivitySelected" v-on:hoveredActivity="onActivityHovered"></ActivitiesList>
+        v-bind:hovered_id="hovered_id" v-on:selectedActivity="onActivitySelected"
+        v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered"></ActivitiesList>
 
     <div class="absolute buttons-bar btn-group" style="z-index: 1;" role="group"
         aria-label="Basic radio toggle button group">
@@ -112,9 +138,13 @@ async function onRouteTypeRequested(type: String) {
         <label class="btn btn-light buttons-bar-btn rounded-pill"
             v-bind:onClick="() => onRouteTypeRequested('with_friends')" for="btnradio3">with friends</label>
 
-        <input type="radio" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
+        <input type="radio" class="btn-check" name="btnradio" id="btnradio4" autocomplete="off">
         <label class="btn btn-light buttons-bar-btn rounded-pill" v-bind:onClick="() => onRouteTypeRequested('abroad')"
-            for="btnradio3">abroad</label>
+            for="btnradio4">abroad</label>
+
+        <input type="radio" class="btn-check" name="btnradio" id="btnradio5" autocomplete="off">
+        <label class="btn btn-light buttons-bar-btn rounded-pill" v-bind:onClick="() => onRouteTypeRequested('best_bang')"
+            for="btnradio5">best bang</label>
     </div>
 
     <div id="map" style="z-index: 0;">

@@ -4,36 +4,154 @@ import type { LatLng, LatLngExpression } from "leaflet";
 import 'leaflet/dist/leaflet.css';
 import L from "leaflet";
 
+const COLORS = [
+    "#B3E5FC",
+    "#81D4FA",
+    "#4FC3F7",
+    "#29B6F6",
+    "#039BE5",
+    "#0288D1",
+    "#0277BD",
+    "#01579B",
+    "#80D8FF",
+    "#40C4FF",
+    "#00B0FF",
+    "#0091EA"];
+
+class Style {
+    color: string = "";
+    weight: number = 3;
+}
+
+const HOVER_STYLE : Style = {
+    color: '#E53935',
+    weight: 0
+};
+
+export type HoverCbk = (id: number, state: boolean) => void;
+type PolylineHandlerFnc = (id: number, polyline: L.Polyline) => void;
+
 export default class LeafletMap {
     map: L.Map;
     centered: boolean = false;
+    elem_id_to_polyline: Map<number, L.Polyline> = new Map();
+    elem_id_to_style: Map<number, Style> = new Map();
+    colors_used: Array<string> = new Array();
+    hover_cbk: HoverCbk | undefined;
+
+    last_hovered_item_id: number = 0;
+    last_centered_on_item_id: number = 0;
 
     constructor(elem_id: string) {
+        COLORS.forEach(c => this.colors_used.push(c));
+
         this.map = L.map(elem_id);
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         }).addTo(this.map);
+
+        this.map.on("zoomend", (e) => {
+            for (let poly of this.elem_id_to_polyline) {
+                let weight_for_zoom = Math.floor(this.map.getZoom() / 2.7);
+
+                let style = this.elem_id_to_style.get(poly[0]);
+                if (style) style.weight = weight_for_zoom;
+
+                poly[1].setStyle({"weight": weight_for_zoom});
+            }
+        });
     }
 
-    public get_map(): L.Map {
-        return this.map;
+    public register_hovered_handler(cbk: HoverCbk) {
+        this.hover_cbk = cbk;
     }
 
-    public center_view(polyline: string) {
+    public center_view(elem_id: number) {
+        if (this.last_centered_on_item_id == elem_id)
+            return;
+
+        this.do_with_elem_id(elem_id, (id, polyline) => {
+            this.map.panTo((polyline.getLatLngs() as LatLng[])[0]);
+            this.map.fitBounds(polyline.getBounds());
+        });
+        this.last_centered_on_item_id = elem_id;
+    }
+
+    public add_polyline(id: number, polyline: string): L.Polyline {
+        let self = this;
         let gps_points = PolylineDecoder.decodePolyline(polyline);
-        this.map.panTo((gps_points.getLatLngs() as LatLng[])[0], { animate: false, duration: 1.5, easeLinearity: 1  });
-    }
+        this.elem_id_to_polyline.set(id, gps_points);
 
-    public add_polyline(polyline: string) {
-        let gps_points = PolylineDecoder.decodePolyline(polyline);
+        let default_style = {
+            "weight": 6,
+            "color": this.colors_used.pop() ?? "#FF".toString()
+        };
+        gps_points.setStyle(default_style);
+        this.elem_id_to_style.set(id, default_style);
+
+        gps_points.on("mouseover", function () {
+            self.highlight_polyline(id, gps_points);
+
+            if (self.hover_cbk)
+                self.hover_cbk(id, true);
+        });
+
+        gps_points.on("mouseout", function () {
+            self.unhighlight_polyline(id, gps_points);
+
+            if (self.hover_cbk)
+                self.hover_cbk(id, false);
+        });
 
         gps_points.addTo(this.map);
 
         if (!this.centered) {
             this.map.setView((gps_points.getLatLngs() as LatLng[])[0], 13);
             this.centered = true;
+        }
+
+        return gps_points
+    }
+
+    public highlight_elem_id(elem_id: number) {
+        if (this.last_hovered_item_id == elem_id)
+            return;
+
+        this.do_with_elem_id(elem_id, this.highlight_polyline);
+        this.last_hovered_item_id = elem_id;
+    }
+
+    public unhighlight_elem_id(elem_id: number) {
+        this.do_with_elem_id(elem_id, this.unhighlight_polyline);
+        this.last_hovered_item_id = 0;
+    }
+
+    private do_with_elem_id(elem_id: number, handler: PolylineHandlerFnc) {
+        let polyline = this.elem_id_to_polyline.get(elem_id);
+
+        if (polyline) {
+            handler.bind(this, elem_id, polyline)();
+        }
+    }
+
+    private highlight_polyline(id: number, polyline: L.Polyline) {        
+        let curr_style = this.elem_id_to_style.get(id);
+
+        if (curr_style) {
+            polyline.bringToFront();   
+            polyline.setStyle(HOVER_STYLE);
+            polyline.setStyle({'weight' : curr_style.weight * 1.5})
+        }        
+    }
+
+    private unhighlight_polyline(id: number, polyline: L.Polyline) {
+        let prev_style = this.elem_id_to_style.get(id);
+
+        if (prev_style) {
+            polyline.setStyle(prev_style);
+            polyline.setStyle({'weight' : prev_style.weight * 1 / 1.5})            
         }
     }
 }

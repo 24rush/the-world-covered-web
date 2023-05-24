@@ -13,5 +13,6 @@ export default class Activity {
     public type: String = "";
     public distance: number = 0.0;
     public average_speed: number = 0.0;
+    public elapsed_time: number = 0;
     public total_elevation_gain: number = 0.0;
 }

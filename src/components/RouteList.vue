@@ -1,48 +1,29 @@
 <script setup lang="ts">
 import Route from '@/data_types/route';
-import { reactive, toRefs } from 'vue';
-import running from '@/icons/running.vue';
-import cycling from '@/icons/cycling.vue';
-import mountain from '@/icons/mountain.vue';
+import ActivityVue from './Activity.vue';
 
-const emit = defineEmits(['selectedRoute', 'hoveredRoute'])
+const emit = defineEmits(['selectedRoute', 'hoveredRoute', 'unhoveredRoute'])
 
 const props = defineProps({
     routes: {
         type: Array<Route>,
     },
+    hovered_id: Number
 });
-
-const { routes } = toRefs(props);
 
 </script>
 
 <template>
     <div class="container">
         <ul class="list-group">
-            <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
-                style="cursor: pointer" v-for="route in routes" v-on:mouseover="emit('hoveredRoute', route)"
-                v-on:mousedown="emit('selectedRoute', route)">
-               
-                <div class="ms-2 me-auto">
-                    <span class="fw-bold" v-if="route.master_activity?.location_city">{{ route.master_activity.location_city
-                    }}, </span>
-                    <span class="fw-bold">{{ route.master_activity?.location_country }}</span>
-                    <div>
-                        {{ Math.ceil(route.master_activity.distance / 1000) }} km
-                        <mountain style="height: 17px;"/>
-                        {{ Math.ceil(route.master_activity.total_elevation_gain) }} m
-                    </div>
-                </div>
+            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
+                :class="{ activity_container_hover: hovered_id === route.master_activity._id }" style="cursor: pointer"
+                v-for="route in routes" v-on:mouseover="emit('hoveredRoute', route)"
+                v-on:mousedown="emit('selectedRoute', route)"
+                v-on:mouseleave="emit('unhoveredRoute', route.master_activity)">
 
-                <div>
-                    <span class="badge-item" style="vertical-align: top;">
-                        <running v-if="route.master_activity?.type === 'Run'" />
-                        <cycling v-if="route.master_activity?.type === 'Ride'" />
-                    </span>
-                    <span class="badge bg-primary rounded-pill">{{ route.activities.length }} times</span>
-                </div>                
-            </a>
+                <ActivityVue :activity="route.master_activity" :count_times="route.activities.length" />
+            </div>
         </ul>
     </div>
 </template>
@@ -51,5 +32,4 @@ const { routes } = toRefs(props);
 .badge-item {
     padding-right: 0.5em;
 }
-
 </style>

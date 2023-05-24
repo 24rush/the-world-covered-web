@@ -17,4 +17,8 @@ export default class QueryGen {
     public act_epic_rides() : any {
         return [{ "$match": { "distance": { "$gt": 100000 }, "total_elevation_gain" : {"$gt": 1500} } }, {"$sort": {"total_elevation_gain" : -1}}, { "$limit": 15 }];
     }
+
+    public act_best_bang() : any {
+        return [{ $addFields : { bestBang: { $divide : [ "$total_elevation_gain", "$elapsed_time" ] }}}, {"$sort": {bestBang: -1}}, {"$limit": 10}];
+    }
 }
