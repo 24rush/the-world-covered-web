@@ -90,7 +90,6 @@ function add_polyline(id: number, polyline: string) {
 async function onRouteTypeRequested(type: String) {
     activities.splice(0);
     routes.splice(0);
-
     if (type === "most_ridden") {
         await endpoint.get_routes(4399230).then(db_routes => {
             for (let route of db_routes) {
@@ -118,16 +117,22 @@ async function onRouteTypeRequested(type: String) {
         });
     }
 }
+
+function onSegmentEffortsRequested(seg_id: number) {  
+    console.log('are ' +seg_id)  ;
+    endpoint.query_efforts(query_gen.efforts_on_seg_id(seg_id)).then(efforts => console.log(efforts));
+}
+
 </script>
 
 <template>
     <RouteList class="absolute routeList" style="z-index: 2;" v-bind:routes="routes" v-on:selectedRoute="onRouteSelected"
         v-on:hoveredRoute="onRouteHovered" v-bind:hovered_id="hovered_id" 
-         v-on:unhoveredRoute="onRouteUnhovered"></RouteList>
+         v-on:unhoveredRoute="onRouteUnhovered" v-on:segmentEffortsRequested="onSegmentEffortsRequested"></RouteList>
 
     <ActivitiesList class="absolute routeList" style="z-index: 2;" v-bind:activities="activities"
         v-bind:hovered_id="hovered_id" v-on:selectedActivity="onActivitySelected"
-        v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered"></ActivitiesList>
+        v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered" v-on:segmentEffortsRequested="onSegmentEffortsRequested"></ActivitiesList>
 
     <div class="absolute buttons-bar btn-group" style="z-index: 1;" role="group"
         aria-label="Basic radio toggle button group">

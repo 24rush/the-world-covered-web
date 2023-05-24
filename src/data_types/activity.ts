@@ -2,13 +2,13 @@ class Map {
     public polyline: string = "";
 }
 
-class Effort {
-    public _id: number = 0;    
-    public segment: Segment = new Segment();
+export class ActivityEffort {
+    public id: number = 0;    
+    public segment: ActivitySegment = new ActivitySegment();
     public name: String = "";
 }
 
-class Segment {
+class ActivitySegment {
     public id: number = 0;   
     public distance: number = 0;
     public average_grade: number = 0;
@@ -28,5 +28,5 @@ export default class Activity {
     public elapsed_time: number = 0;
     public total_elevation_gain: number = 0.0;
 
-    public segment_efforts: Effort[] = [];
+    public segment_efforts: ActivityEffort[] = [];
 }

@@ -1,4 +1,5 @@
 import type Activity from "./data_types/activity";
+import type Effort from "./data_types/effort";
 import type Route from "./data_types/route";
 import * as Realm from "realm-web";
 const {
@@ -56,6 +57,10 @@ export default class DataEndpoint {
 
     async query_activities(query: any): Promise<Activity[]> {
         return this.post_data('/query_activities', query);
+    }
+
+    async query_efforts(query: any): Promise<Effort[]> {
+        return this.post_data('/query_efforts', query);
     }
 
     private async authenticate_mongo() {

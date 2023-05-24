@@ -2,7 +2,7 @@
 import Route from '@/data_types/route';
 import ActivityVue from './Activity.vue';
 
-const emit = defineEmits(['selectedRoute', 'hoveredRoute', 'unhoveredRoute'])
+const emit = defineEmits(['selectedRoute', 'hoveredRoute', 'unhoveredRoute', 'segmentEffortsRequested'])
 
 const props = defineProps({
     routes: {
@@ -22,7 +22,8 @@ const props = defineProps({
                 v-on:mousedown="emit('selectedRoute', route)"
                 v-on:mouseleave="emit('unhoveredRoute', route.master_activity)">
 
-                <ActivityVue :activity="route.master_activity" :count_times="route.activities.length" />
+                <ActivityVue :activity="route.master_activity" :count_times="route.activities.length"
+                    v-on:segmentEffortsRequested="emit('segmentEffortsRequested', $event)" />
             </div>
         </ul>
     </div>

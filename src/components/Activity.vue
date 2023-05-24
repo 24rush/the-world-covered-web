@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import Activity from '@/data_types/activity';
+import Activity, { ActivityEffort } from '@/data_types/activity';
 import running from '@/icons/running.vue';
 import cycling from '@/icons/cycling.vue';
 import mountain from '@/icons/mountain.vue';
 import strava from '@/icons/strava.vue';
 import hiking from '@/icons/hiking.vue';
 import gradient from '@/icons/gradient.vue';
+
+const emit = defineEmits(['segmentEffortsRequested'])
 
 const props = defineProps({
     activity: {
@@ -18,12 +20,13 @@ const props = defineProps({
     }
 });
 
-function distance_formatter(distance_m: number) : String {
+function distance_formatter(distance_m: number): String {
     if (distance_m > 1000)
         return Math.ceil(distance_m / 1000).toString() + "km"
 
     return distance_m.toString() + 'm';
 }
+
 </script>
 
 <template>
@@ -61,7 +64,7 @@ function distance_formatter(distance_m: number) : String {
             </div>
         </div>
 
-        <div class="d-flex accordion accordion-flush pt-1" id="accordionExample">
+        <div class="d-flex accordion accordion-flush pt-1">
             <div class="accordion-item" style="width: 100%;">
                 <span class="accordion-header" v-bind:id="'header' + activity._id.toString()">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -71,23 +74,48 @@ function distance_formatter(distance_m: number) : String {
                     </button>
                 </span>
                 <div v-bind:id="'collapse' + activity._id.toString()" class="accordion-collapse hide collapse"
-                    v-bind:aria-labelledby="'header' + activity._id.toString()" data-bs-parent="#accordionExample">
+                    v-bind:aria-labelledby="'header' + activity._id.toString()">
                     <div v-for="effort in activity.segment_efforts" class="accordion-body">
-                        <span>{{ effort.name }}</span>
-                        <div class="ml-1">                            
-                            <span class="stats-item">{{ distance_formatter(effort.segment.distance) }}</span>
-                            <span class="stats-item"><gradient style="height: 17px;"/></span>
-                            <span class="stats-item">{{ effort.segment.average_grade }}%</span>
+
+                        <div class="d-flex accordion accordion-flush pt-1">
+                            <div class="accordion-item" style="width: 100%;">
+                                <span class="accordion-header" v-bind:id="'header' + effort.id.toString()">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        :data-bs-target="'#collapse' + effort.id.toString()" aria-expanded="true"
+                                        v-on:click="emit('segmentEffortsRequested', effort.segment.id)"
+                                        v-bind:aria-controls="'collapse' + effort.id.toString()">
+                                        <div>
+                                            <span>{{ effort.name }}</span>
+                                            <div class="ml-1">
+                                                <span class="stats-item">{{ distance_formatter(effort.segment.distance)
+                                                }}</span>
+                                                <span class="stats-item">
+                                                    <gradient style="height: 17px;" />
+                                                </span>
+                                                <span class="stats-item">{{ effort.segment.average_grade }}%</span>
+                                            </div>
+                                        </div>
+                                    </button>
+                                </span>
+                                <div v-bind:id="'collapse' + effort.id.toString()" class="accordion-collapse hide collapse"
+                                    v-bind:aria-labelledby="'header' + effort.id.toString()">
+                                    <div v-for="effort in activity.segment_efforts" class="accordion-body">
+                                        /* EFFORT Hist*/
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
+
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </template>
-<style scoped>
+<style>
 .badge-item {
-    padding-right: 0.7em;
+    padding-right: 0.3em;
 }
 
 .stats-item {

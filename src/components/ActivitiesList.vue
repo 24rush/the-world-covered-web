@@ -2,7 +2,7 @@
 import type Activity from '@/data_types/activity';
 import ActivityVue from './Activity.vue';
 
-const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity'])
+const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity', 'segmentEffortsRequested'])
 
 const props = defineProps({
     activities: Array<Activity>,
@@ -18,7 +18,7 @@ const props = defineProps({
                 :class="{ activity_container_hover: hovered_id === activity._id }" style="cursor: pointer"
                 v-for="activity in activities" :key="activity._id" v-on:mouseover="emit('hoveredActivity', activity)"
                 v-on:mouseleave="emit('unhoveredActivity', activity)" v-on:mousedown="emit('selectedActivity', activity)">
-                <ActivityVue :activity="activity" :count_times="1"/>
+                <ActivityVue :activity="activity" :count_times="1" v-on:segmentEffortsRequested="emit('segmentEffortsRequested', $event)"/>
             </div>
         </ul>
     </div>
