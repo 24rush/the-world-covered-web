@@ -6,7 +6,6 @@ import Route from '@/data_types/route';
 import RouteList from './RouteList.vue'
 import ActivitiesList from './ActivitiesList.vue';
 import QueryGen from '@/query_gen';
-
 import type Activity from '@/data_types/activity';
 
 var routes = reactive<Route[]>([]);
@@ -62,7 +61,7 @@ function hoverPolylineOfId(id: number, hover: boolean) {
         map.highlight_elem_id(id);
         map.center_view(id);
     }
-    else {        
+    else {
         map.unhighlight_elem_id(id);
     }
 }
@@ -96,6 +95,10 @@ async function onRouteTypeRequested(type: String) {
                 let query = query_gen.acts_in_ids([route.master_activity_id]);
                 endpoint.query_activities(query).then(activities => {
                     let master_activity = activities[0];
+                    master_activity.segment_efforts.forEach(se => {
+                        se.segment.effort_series = reactive([]);
+                    });
+
                     route.master_activity = master_activity;
                     routes.push(route);
 
@@ -108,31 +111,60 @@ async function onRouteTypeRequested(type: String) {
         let query = get_query(type);
         if (!query) return;
 
-        await endpoint.query_activities(query).then(acts => {
-            for (let activity of acts) {
+        await endpoint.query_activities(query).then(db_activities => {
+            db_activities.forEach(activity => {
+                activity.segment_efforts.forEach(se => {
+                    se.segment.effort_series = reactive([]);
+                });
+                
                 activities.push(activity);
 
                 add_polyline(activity._id, activity.map.polyline);
-            }
+            })
         });
     }
 }
 
-function onSegmentEffortsRequested(seg_id: number) {  
-    console.log('are ' +seg_id)  ;
-    endpoint.query_efforts(query_gen.efforts_on_seg_id(seg_id)).then(efforts => console.log(efforts));
+function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
+    let segment = activity.segment_efforts.find(se => se.segment.id == seg_id);
+    if (segment && segment.segment.effort_series.length > 0) {
+        return;
+    }
+
+    endpoint.query_efforts(query_gen.efforts_on_seg_id(seg_id)).then(efforts => {        
+        let moving_time_data: any[] = [];
+        let distance_from_start_data: any[] = [];
+
+        for (let effort of efforts) {
+            let date = (new Date(effort.start_date_local.toString())).toLocaleDateString('ro-RO', {
+                day: '2-digit',
+                month: 'short',
+                year: '2-digit',
+            });
+
+            moving_time_data.push({ 'x': date, 'y': effort.moving_time as number });
+            distance_from_start_data.push({ 'x': date, 'y': (effort.distance_from_start as number).toFixed(1) });
+        }
+
+        let segment = activity.segment_efforts.find(se => se.segment.id == seg_id);
+        if (!segment) return;
+
+        segment.segment.effort_series.push({ type: 'line', name: "Distance from start", data: distance_from_start_data });
+        segment.segment.effort_series.push({ type: 'bar', name: "Moving time", data: moving_time_data });
+    });
 }
 
 </script>
 
 <template>
     <RouteList class="absolute routeList" style="z-index: 2;" v-bind:routes="routes" v-on:selectedRoute="onRouteSelected"
-        v-on:hoveredRoute="onRouteHovered" v-bind:hovered_id="hovered_id" 
-         v-on:unhoveredRoute="onRouteUnhovered" v-on:segmentEffortsRequested="onSegmentEffortsRequested"></RouteList>
+        v-on:hoveredRoute="onRouteHovered" v-bind:hovered_id="hovered_id" v-on:unhoveredRoute="onRouteUnhovered"
+        v-on:segmentEffortsRequested="onSegmentEffortsRequested"></RouteList>
 
     <ActivitiesList class="absolute routeList" style="z-index: 2;" v-bind:activities="activities"
-        v-bind:hovered_id="hovered_id" v-on:selectedActivity="onActivitySelected"
-        v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered" v-on:segmentEffortsRequested="onSegmentEffortsRequested"></ActivitiesList>
+        v-bind:hovered_id="hovered_id" v-on:selectedActivity="onActivitySelected" v-on:hoveredActivity="onActivityHovered"
+        v-on:unhoveredActivity="onActivityUnhovered" v-on:segmentEffortsRequested="onSegmentEffortsRequested">
+    </ActivitiesList>
 
     <div class="absolute buttons-bar btn-group" style="z-index: 1;" role="group"
         aria-label="Basic radio toggle button group">

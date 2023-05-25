@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import Activity, { ActivityEffort } from '@/data_types/activity';
+import Activity from '@/data_types/activity';
 import running from '@/icons/running.vue';
 import cycling from '@/icons/cycling.vue';
 import mountain from '@/icons/mountain.vue';
 import strava from '@/icons/strava.vue';
 import hiking from '@/icons/hiking.vue';
 import gradient from '@/icons/gradient.vue';
+import type Effort from '@/data_types/effort';
+import { reactive } from 'vue';
 
 const emit = defineEmits(['segmentEffortsRequested'])
 
@@ -17,6 +19,48 @@ const props = defineProps({
     count_times: {
         type: Number,
         required: true
+    },
+});
+
+const chartOptions = reactive({
+    chart: {
+        type: 'line',
+        toolbar: {
+            show: false
+        }
+    },
+    xaxis: {
+        type: 'string',
+    },
+    animations: {
+        enabled: false,
+    },
+    dataLabels: {
+        enabled: false,
+    },
+    yaxis: [{
+        labels: {
+            formatter: function (value: number) {
+                return distance_formatter(value);
+            }
+        },
+        title: {
+            text: 'Distance from start',
+        }
+    }, {
+        labels: {
+            formatter: function (value: number) {
+                return time_formatter(value);
+            }
+        },
+        title: {
+            text: 'Moving time',
+        },
+        opposite: true,
+
+    }],
+    legend: {
+        show: false
     }
 });
 
@@ -25,6 +69,21 @@ function distance_formatter(distance_m: number): String {
         return Math.ceil(distance_m / 1000).toString() + "km"
 
     return distance_m.toString() + 'm';
+}
+
+function time_formatter(time_sec: number): String {
+    if (time_sec >= 3600)
+        return new Date(time_sec * 1000).toISOString().substring(11, 16) + "s"
+    else
+        return new Date(time_sec * 1000).toISOString().substring(14, 19) + "s"
+}
+
+function segmentEffortsRequested(activity: Activity, seg_id: number, effort_id: number) {
+    let button = document.querySelector('[data-bs-target="#collapse' + effort_id + '"]') as HTMLElement;
+
+    if (button && "true" === button.getAttribute('aria-expanded')) {
+        emit('segmentEffortsRequested', activity, seg_id);
+    }
 }
 
 </script>
@@ -58,7 +117,8 @@ function distance_formatter(distance_m: number): String {
                     <cycling v-if="activity.type === 'Ride'" />
                     <hiking v-if="activity.type === 'Hike'" />
                 </span>
-                <span v-if="activity.athlete_count > 1" class="badge bg-primary rounded-pill">{{ activity.athlete_count
+                <span v-if="activity.athlete_count > 1 && count_times == 1" class="badge bg-primary rounded-pill">{{
+                    activity.athlete_count
                 }} people</span>
                 <span v-if="count_times > 1" class="badge bg-primary rounded-pill">{{ count_times }} times</span>
             </div>
@@ -78,11 +138,11 @@ function distance_formatter(distance_m: number): String {
                     <div v-for="effort in activity.segment_efforts" class="accordion-body">
 
                         <div class="d-flex accordion accordion-flush pt-1">
-                            <div class="accordion-item" style="width: 100%;">
+                            <div class="accordion-item" style="width: 100%;"
+                                v-on:click="segmentEffortsRequested(activity, effort.segment.id, effort.id)">
                                 <span class="accordion-header" v-bind:id="'header' + effort.id.toString()">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                         :data-bs-target="'#collapse' + effort.id.toString()" aria-expanded="true"
-                                        v-on:click="emit('segmentEffortsRequested', effort.segment.id)"
                                         v-bind:aria-controls="'collapse' + effort.id.toString()">
                                         <div>
                                             <span>{{ effort.name }}</span>
@@ -99,14 +159,14 @@ function distance_formatter(distance_m: number): String {
                                 </span>
                                 <div v-bind:id="'collapse' + effort.id.toString()" class="accordion-collapse hide collapse"
                                     v-bind:aria-labelledby="'header' + effort.id.toString()">
-                                    <div v-for="effort in activity.segment_efforts" class="accordion-body">
-                                        /* EFFORT Hist*/
+                                    <div>
+                                        <apexchart class="apex-chart" :options="chartOptions"
+                                            :series="effort.segment.effort_series">
+                                        </apexchart>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
-
                     </div>
                 </div>
             </div>
@@ -128,8 +188,9 @@ function distance_formatter(distance_m: number): String {
     background-color: transparent;
 }
 
-.accordion-body:hover {
-    opacity: 0.59;
+.accordion-item:hover {
+    border-width: 0px 3px 0px 0px!important;
+    border-color:var(--bs-blue)!important;
 }
 
 .accordion-button:after {

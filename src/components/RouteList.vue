@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Route from '@/data_types/route';
 import ActivityVue from './Activity.vue';
+import type Activity from '@/data_types/activity';
 
 const emit = defineEmits(['selectedRoute', 'hoveredRoute', 'unhoveredRoute', 'segmentEffortsRequested'])
 
@@ -8,8 +9,12 @@ const props = defineProps({
     routes: {
         type: Array<Route>,
     },
-    hovered_id: Number
+    hovered_id: Number,
 });
+
+function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
+    emit('segmentEffortsRequested', activity, seg_id);
+}
 
 </script>
 
@@ -23,13 +28,18 @@ const props = defineProps({
                 v-on:mouseleave="emit('unhoveredRoute', route.master_activity)">
 
                 <ActivityVue :activity="route.master_activity" :count_times="route.activities.length"
-                    v-on:segmentEffortsRequested="emit('segmentEffortsRequested', $event)" />
+                v-on:segmentEffortsRequested="onSegmentEffortsRequested" />
             </div>
         </ul>
     </div>
 </template>
 
-<style scoped>
+<style>
+.list-group-item:hover {
+    border-width: 0px 3px 0px 0px;
+    border-color:var(--bs-blue);
+}
+
 .badge-item {
     padding-right: 0.5em;
 }

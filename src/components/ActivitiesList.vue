@@ -9,6 +9,9 @@ const props = defineProps({
     hovered_id: Number
 });
 
+function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
+    emit('segmentEffortsRequested', activity, seg_id);
+}
 </script>
 
 <template>
@@ -18,28 +21,30 @@ const props = defineProps({
                 :class="{ activity_container_hover: hovered_id === activity._id }" style="cursor: pointer"
                 v-for="activity in activities" :key="activity._id" v-on:mouseover="emit('hoveredActivity', activity)"
                 v-on:mouseleave="emit('unhoveredActivity', activity)" v-on:mousedown="emit('selectedActivity', activity)">
-                <ActivityVue :activity="activity" :count_times="1" v-on:segmentEffortsRequested="emit('segmentEffortsRequested', $event)"/>
+                <ActivityVue :activity="activity" :count_times="1"
+                    v-on:segmentEffortsRequested="onSegmentEffortsRequested" />
             </div>
         </ul>
     </div>
 </template>
 
 <style>
+.list-group-item:hover {
+    border-width: 0px 3px 0px 0px;
+    border-color:var(--bs-blue);
+}
+
 .activity_container_hover {
-    opacity: 0.99;
     transition: transform .1s;
     transition-delay: 0s;
     transition-timing-function: linear;
-    transform: scale(1.05);
     border-color: rgba(173, 173, 173, 0.477);
 }
 
 .activity_container:hover {
-    opacity: 0.99;
     transition: transform .1s;
     transition-delay: 0s;
     transition-timing-function: linear;
-    transform: scale(1.05);
     border-color: rgba(173, 173, 173, 0.477);
 }
 </style>

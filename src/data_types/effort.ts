@@ -5,5 +5,6 @@ export default class Effort {
     public activity_id: Number = 0;
     public moving_time: Number = 0;
     
-    public distance_from_start: Number = 0
+    public distance_from_start: Number = 0;
+    public start_date_local: String = "";
 }
