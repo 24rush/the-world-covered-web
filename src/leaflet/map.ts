@@ -86,11 +86,12 @@ export default class LeafletMap {
     public add_polyline(id: number, polyline: string): L.Polyline {
         let self = this;
         let gps_points = PolylineDecoder.decodePolyline(polyline);
+
         this.elem_id_to_polyline.set(id, new PolylineCtx(gps_points, true));
 
         let default_style = {
             "weight": 6,
-            "color": this.colors_used.pop() ?? "#FF".toString()
+            "color": "#fc5200".toString()
         };
         gps_points.setStyle(default_style);
         this.elem_id_to_style.set(id, default_style);
@@ -126,6 +127,14 @@ export default class LeafletMap {
             polyCtx.addedToMap = true;
             polyCtx.polyline.addTo(this.map);
         }
+    }
+
+    public clear_all() {
+        for (let elem of this.elem_id_to_polyline) {
+            elem[1].polyline.removeFrom(this.map);
+        }
+
+        this.elem_id_to_polyline.clear();
     }
 
     public hide_all() {
@@ -183,7 +192,7 @@ export default class LeafletMap {
         let prev_style = this.elem_id_to_style.get(id);
 
         if (prev_style) {
-            polyline.setStyle(prev_style);
+            polyline.setStyle(prev_style);            
             polyline.setStyle({ 'weight': prev_style.weight * 1 / 1.5 })
         }
     }

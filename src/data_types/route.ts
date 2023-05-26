@@ -7,5 +7,11 @@ export default class Route {
     public activities: number[] = [];
 
     public master_activity_id: number = 0;
-    public master_activity: Activity  = new Activity();
+    public type: String = "";
+    public distance: number = 0.0;
+    public average_speed: number = 0.0;
+    public total_elevation_gain: number = 0;
+
+    public location_city: String = "";
+    public location_country: String = "";
 }

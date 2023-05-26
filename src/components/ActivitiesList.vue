@@ -18,10 +18,10 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     <div class="container">
         <ul class="list-group">
             <div class="activity_container list-group-item list-group-item-action d-flex justify-content-between align-items-start"
-                :class="{ activity_container_hover: hovered_id === activity._id }" style="cursor: pointer"
-                v-for="activity in activities" :key="activity._id" v-on:mouseover="emit('hoveredActivity', activity)"
-                v-on:mouseleave="emit('unhoveredActivity', activity)" v-on:mousedown="emit('selectedActivity', activity)">
-                <ActivityVue :activity="activity" :count_times="1"
+                :class="{ 'list-group-item-hover': hovered_id === activity._id }" style="cursor: pointer"
+                v-for="activity in activities" :key="activity._id" v-on:mouseover="emit('hoveredActivity', activity._id)"
+                v-on:mouseleave="emit('unhoveredActivity', activity._id)" v-on:mousedown="emit('selectedActivity', activity._id)">
+                <ActivityVue :activity="activity" :id="activity._id" :count_times="activity.activities ? activity.activities.length : 1"
                     v-on:segmentEffortsRequested="onSegmentEffortsRequested" />
             </div>
         </ul>
@@ -29,8 +29,8 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
 </template>
 
 <style>
-.list-group-item:hover {
-    border-width: 0px 3px 0px 0px;
+.list-group-item-hover {
+    border-width: 0px 0px 0px 3px;
     border-color:var(--bs-blue);
 }
 

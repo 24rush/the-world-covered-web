@@ -7,6 +7,7 @@ import RouteList from './RouteList.vue'
 import ActivitiesList from './ActivitiesList.vue';
 import QueryGen from '@/query_gen';
 import type Activity from '@/data_types/activity';
+import type { DocumentId } from '@/data_types/activity';
 
 var routes = reactive<Route[]>([]);
 var activities = reactive<Activity[]>([]);
@@ -19,47 +20,47 @@ var query_gen: QueryGen = new QueryGen(4399230);
 onMounted(async () => {
     endpoint = new DataEndpoint("localhost");
     map = new LeafletMap("map");
-    map.register_hovered_handler(onPolylineHovered);
+    map.register_hovered_handler((id: number, state: boolean) => {
+        hovered_id.value = state ? id : -1;
+    });
 
-    onRouteTypeRequested("most_ridden");
+    onRouteTypeRequested("unique_routes");
 })
 
-function onPolylineHovered(id: number, state: boolean) {
-    hovered_id.value = state ? id : 0;
+function onRouteSelected(activity_id: DocumentId) {
+    console.log(activity_id)
+    onActivitySelected(activity_id);
 }
 
-function onRouteSelected(route: Route) {
+function onRouteHovered(activity_id: DocumentId) {
+    console.log(activity_id)
+    onActivityHovered(activity_id);
+}
+
+function onRouteUnhovered(activity_id: DocumentId) {
+    console.log(activity_id)
+    onActivityUnhovered(activity_id);
+}
+
+function onActivitySelected(activity_id: DocumentId) {
     map.hide_all();
-    map.show_only(route.master_activity._id);
-    hoverPolylineOfId(route.master_activity._id, true);
-    map.center_view(route.master_activity._id);
+    map.show_only(activity_id);
+    hover_polyline_of_id(activity_id, true);
+    map.center_view(activity_id);
 }
 
-function onRouteHovered(route: Route) {
-    //hoverPolylineOfId(route.master_activity._id, true);
+function onActivityHovered(activity_id: DocumentId) {
+    hover_polyline_of_id(activity_id, true);
 }
 
-function onRouteUnhovered(activity: Activity) {
-    //map.show_all();
-    hoverPolylineOfId(activity._id, false);
+function onActivityUnhovered(activity_id: DocumentId) {
+    hover_polyline_of_id(activity_id, false);
+    map.show_all();    
 }
 
-function onActivitySelected(activity: Activity) {
-    hoverPolylineOfId(activity._id, true);
-}
-
-function onActivityHovered(activity: Activity) {
-    //hoverPolylineOfId(activity._id, true);
-}
-
-function onActivityUnhovered(activity: Activity) {
-    hoverPolylineOfId(activity._id, false);
-}
-
-function hoverPolylineOfId(id: number, hover: boolean) {
+function hover_polyline_of_id(id: number, hover: boolean) {
     if (hover) {
         map.highlight_elem_id(id);
-        map.center_view(id);
     }
     else {
         map.unhighlight_elem_id(id);
@@ -76,6 +77,8 @@ function get_query(type: String): String {
             return query_gen.act_epic_rides()
         case "best_bang":
             return query_gen.act_best_bang()
+        case "unique_routes":
+            return query_gen.unique_routes_routes()
         default:
             console.log("WARNING: Unknown route type")
             return "";
@@ -89,34 +92,28 @@ function add_polyline(id: number, polyline: string) {
 async function onRouteTypeRequested(type: String) {
     activities.splice(0);
     routes.splice(0);
-    if (type === "most_ridden") {
-        await endpoint.get_routes(4399230).then(db_routes => {
+    map.clear_all();
+
+    let query = get_query(type);
+    if (!query)
+        return;
+
+    if (type === "unique_routes") {
+        await endpoint.query_routes(query).then(db_routes => {
             for (let route of db_routes) {
-                let query = query_gen.acts_in_ids([route.master_activity_id]);
-                endpoint.query_activities(query).then(activities => {
-                    let master_activity = activities[0];
-                    master_activity.segment_efforts.forEach(se => {
-                        se.segment.effort_series = reactive([]);
-                    });
+                routes.push(route);
 
-                    route.master_activity = master_activity;
-                    routes.push(route);
-
-                    add_polyline(master_activity._id, master_activity.map.polyline);
-                })
+                add_polyline(route.master_activity_id, route.polyline);
             }
         });
     }
     else {
-        let query = get_query(type);
-        if (!query) return;
-
         await endpoint.query_activities(query).then(db_activities => {
             db_activities.forEach(activity => {
                 activity.segment_efforts.forEach(se => {
                     se.segment.effort_series = reactive([]);
                 });
-                
+
                 activities.push(activity);
 
                 add_polyline(activity._id, activity.map.polyline);
@@ -131,7 +128,7 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
         return;
     }
 
-    endpoint.query_efforts(query_gen.efforts_on_seg_id(seg_id)).then(efforts => {        
+    endpoint.query_efforts(query_gen.efforts_on_seg_id(seg_id)).then(efforts => {
         let moving_time_data: any[] = [];
         let distance_from_start_data: any[] = [];
 
@@ -169,8 +166,8 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     <div class="absolute buttons-bar btn-group" style="z-index: 1;" role="group"
         aria-label="Basic radio toggle button group">
         <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" checked>
-        <label class="btn btn-light buttons-bar-btn rounded-pill" v-bind:onClick="() => onRouteTypeRequested('most_ridden')"
-            for="btnradio1">most ridden</label>
+        <label class="btn btn-light buttons-bar-btn rounded-pill"
+            v-bind:onClick="() => onRouteTypeRequested('unique_routes')" for="btnradio1">unique routes</label>
 
         <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
         <label class="btn btn-light buttons-bar-btn rounded-pill" v-bind:onClick="() => onRouteTypeRequested('epic_rides')"
@@ -193,7 +190,7 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     </div>
 </template>
 
-<style scoped>
+<style>
 #map {
     width: 100%;
     height: 100%;
@@ -226,6 +223,11 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     right: 1em;
     top: 6em;
     max-width: 400px;
+}
+
+.list-group-item:hover {
+    border-width: 0px 0px 0px 3px;
+    border-color: var(--bs-blue);
 }
 
 @media (min-width: 1024px) {}

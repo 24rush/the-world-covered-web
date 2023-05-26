@@ -1,4 +1,4 @@
-import Effort from "./effort";
+export type DocumentId = number;
 
 class Map {
     public polyline: string = "";

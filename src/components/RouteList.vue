@@ -22,25 +22,25 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     <div class="container">
         <ul class="list-group">
             <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
-                :class="{ activity_container_hover: hovered_id === route.master_activity._id }" style="cursor: pointer"
-                v-for="route in routes" v-on:mouseover="emit('hoveredRoute', route)"
-                v-on:mousedown="emit('selectedRoute', route)"
-                v-on:mouseleave="emit('unhoveredRoute', route.master_activity)">
+                :class="{ 'list-group-item-hover': hovered_id === route.master_activity_id }" style="cursor: pointer"
+                v-for="route in routes" v-on:mouseover="emit('hoveredRoute', route.master_activity_id)"
+                v-on:mousedown="emit('selectedRoute', route.master_activity_id)"
+                v-on:mouseleave="emit('unhoveredRoute', route.master_activity_id)">
 
-                <ActivityVue :activity="route.master_activity" :count_times="route.activities.length"
-                v-on:segmentEffortsRequested="onSegmentEffortsRequested" />
+                <ActivityVue :activity="route" :id="route.master_activity_id" :count_times="route.activities.length"
+                    v-on:segmentEffortsRequested="onSegmentEffortsRequested" />
             </div>
         </ul>
     </div>
 </template>
 
 <style>
-.list-group-item:hover {
-    border-width: 0px 3px 0px 0px;
-    border-color:var(--bs-blue);
-}
-
 .badge-item {
     padding-right: 0.5em;
+}
+
+.list-group-item-hover {
+    border-width: 0px 0px 0px 3px;
+    border-color: var(--bs-blue);
 }
 </style>

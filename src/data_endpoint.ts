@@ -47,12 +47,12 @@ export default class DataEndpoint {
             });
     }
 
-    async get_routes(ath_id: number): Promise<Route[]> {
-        return this.get_data('/routes/' + ath_id);
-    }
-
     async get_activities_with_id(ids: number[]): Promise<Activity[]> {
         return this.post_data('/query_activities', { "_id": { "$in": ids } });
+    }
+
+    async query_routes(query: any): Promise<Route[]> {
+        return this.post_data('/query_routes/', query);
     }
 
     async query_activities(query: any): Promise<Activity[]> {

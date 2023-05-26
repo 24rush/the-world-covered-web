@@ -6,7 +6,6 @@ import mountain from '@/icons/mountain.vue';
 import strava from '@/icons/strava.vue';
 import hiking from '@/icons/hiking.vue';
 import gradient from '@/icons/gradient.vue';
-import type Effort from '@/data_types/effort';
 import { reactive } from 'vue';
 
 const emit = defineEmits(['segmentEffortsRequested'])
@@ -14,6 +13,10 @@ const emit = defineEmits(['segmentEffortsRequested'])
 const props = defineProps({
     activity: {
         type: Activity,
+        required: true
+    },
+    id : {
+        type: Number,
         required: true
     },
     count_times: {
@@ -78,6 +81,15 @@ function time_formatter(time_sec: number): String {
         return new Date(time_sec * 1000).toISOString().substring(14, 19) + "s"
 }
 
+function pace_formatter(m_per_sec: number): String {
+    var pace = 16.667 / m_per_sec;
+    var leftover = pace % 1;
+    var minutes = pace - leftover;
+    var seconds = Math.round(leftover * 60);
+
+    return minutes + ":" + (seconds < 10 ? '0' + seconds : seconds)
+}
+
 function segmentEffortsRequested(activity: Activity, seg_id: number, effort_id: number) {
     let button = document.querySelector('[data-bs-target="#collapse' + effort_id + '"]') as HTMLElement;
 
@@ -104,12 +116,12 @@ function segmentEffortsRequested(activity: Activity, seg_id: number, effort_id: 
                     <span class="stats-item" v-if="activity.type === 'Ride'">{{ parseFloat((activity.average_speed *
                         3.6).toString()).toFixed(1) }}km/h</span>
                     <span class="stats-item" v-if="activity.type === 'Hike' || activity.type === 'Run'">{{
-                        parseFloat((16.667 / activity.average_speed).toString()).toFixed(2) }}min/km</span>
+                        pace_formatter(activity.average_speed) }}min/km</span>
                 </div>
             </div>
-            <div class="ml-auto">
-                <span class="badge-item"><a class="strava_logo"
-                        v-bind:href="`https://www.strava.com/activities/${activity._id}`" target="_blank">
+            <div class="ml-auto">               
+                <span class="badge-item"><a class="strava_logo"                        
+                        v-bind:href="`https://www.strava.com/activities/${id}`" target="_blank">
                         <strava />
                     </a></span>
                 <span class="badge-item" style="vertical-align: top;">
@@ -127,7 +139,7 @@ function segmentEffortsRequested(activity: Activity, seg_id: number, effort_id: 
         <div class="d-flex accordion accordion-flush pt-1">
             <div class="accordion-item" style="width: 100%;">
                 <span class="accordion-header" v-bind:id="'header' + activity._id.toString()">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    <button v-if="activity.segment_efforts" class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                         :data-bs-target="'#collapse' + activity._id.toString()" aria-expanded="true"
                         v-bind:aria-controls="'collapse' + activity._id.toString()">
                         Segments {{ activity.segment_efforts.length }}
@@ -189,8 +201,8 @@ function segmentEffortsRequested(activity: Activity, seg_id: number, effort_id: 
 }
 
 .accordion-item:hover {
-    border-width: 0px 3px 0px 0px!important;
-    border-color:var(--bs-blue)!important;
+    border-width: 0px 3px 0px 0px !important;
+    border-color: var(--bs-blue) !important;
 }
 
 .accordion-button:after {
