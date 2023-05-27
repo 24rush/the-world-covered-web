@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, reactive, toRefs } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import DataEndpoint from '@/data_endpoint';
 import LeafletMap from '@/leaflet/map';
 import Route from '@/data_types/route';
-import RouteList from './RouteList.vue'
 import ActivitiesList from './ActivitiesList.vue';
 import QueryGen from '@/query_gen';
 import type Activity from '@/data_types/activity';
@@ -12,6 +11,7 @@ import type { DocumentId } from '@/data_types/activity';
 var routes = reactive<Route[]>([]);
 var activities = reactive<Activity[]>([]);
 var hovered_id = ref(0);
+var selected_id = ref(0);
 
 var map: LeafletMap;
 var endpoint: DataEndpoint;
@@ -20,73 +20,60 @@ var query_gen: QueryGen = new QueryGen(4399230);
 onMounted(async () => {
     endpoint = new DataEndpoint("localhost");
     map = new LeafletMap("map");
-    map.register_hovered_handler((id: number, state: boolean) => {
-        hovered_id.value = state ? id : -1;
+
+    // Events coming from map
+    map.register_hovered_handler((id: number, state: boolean) => {        
+        document.getElementById("activity_" + id)?.parentElement?.scrollIntoView();
+        state ? onActivityHovered(id) : onActivityUnhovered(id);
+    });
+
+    map.register_poly_clicked_handler((id: number) => {
+        document.getElementById("activity_" + id)?.parentElement?.scrollIntoView();
+        onActivitySelected(id);
     });
 
     onRouteTypeRequested("unique_routes");
 })
 
-function onRouteSelected(activity_id: DocumentId) {
-    console.log(activity_id)
-    onActivitySelected(activity_id);
-}
-
-function onRouteHovered(activity_id: DocumentId) {
-    console.log(activity_id)
-    onActivityHovered(activity_id);
-}
-
-function onRouteUnhovered(activity_id: DocumentId) {
-    console.log(activity_id)
-    onActivityUnhovered(activity_id);
+function onActivityUnselected() {
+    selected_id.value = 0;
+    map.show_all();
 }
 
 function onActivitySelected(activity_id: DocumentId) {
+    if (selected_id.value == activity_id) {
+        onActivityUnselected();
+        return;
+    }
+
     map.hide_all();
     map.show_only(activity_id);
-    hover_polyline_of_id(activity_id, true);
     map.center_view(activity_id);
+
+    hover_polyline_of_id(activity_id, true);
+    hovered_id.value = 0;
+    selected_id.value = activity_id;    
 }
 
 function onActivityHovered(activity_id: DocumentId) {
+    if (selected_id.value != 0)
+        return;
+
+    hovered_id.value = activity_id;
     hover_polyline_of_id(activity_id, true);
 }
 
 function onActivityUnhovered(activity_id: DocumentId) {
+    if (selected_id.value != 0)
+        return;
+
+    map.show_all();
+    hovered_id.value = 0;
     hover_polyline_of_id(activity_id, false);
-    map.show_all();    
 }
 
 function hover_polyline_of_id(id: number, hover: boolean) {
-    if (hover) {
-        map.highlight_elem_id(id);
-    }
-    else {
-        map.unhighlight_elem_id(id);
-    }
-}
-
-function get_query(type: String): String {
-    switch (type) {
-        case "with_friends":
-            return query_gen.acts_with_friends();
-        case "abroad":
-            return query_gen.act_abroad()
-        case "epic_rides":
-            return query_gen.act_epic_rides()
-        case "best_bang":
-            return query_gen.act_best_bang()
-        case "unique_routes":
-            return query_gen.unique_routes_routes()
-        default:
-            console.log("WARNING: Unknown route type")
-            return "";
-    }
-}
-
-function add_polyline(id: number, polyline: string) {
-    map.add_polyline(id, polyline);
+    hover ? map.highlight_elem_id(id) : map.unhighlight_elem_id(id);
 }
 
 async function onRouteTypeRequested(type: String) {
@@ -94,17 +81,37 @@ async function onRouteTypeRequested(type: String) {
     routes.splice(0);
     map.clear_all();
 
-    let query = get_query(type);
-    if (!query)
-        return;
+    let query = "";
+    switch (type) {
+        case "with_friends":
+            query = query_gen.acts_with_friends();
+            break;
+        case "abroad":
+            query = query_gen.act_abroad()
+            break;
+        case "epic_rides":
+            query = query_gen.act_epic_rides()
+            break;
+        case "best_bang":
+            query = query_gen.act_best_bang()
+            break;
+        case "unique_routes":
+            query = query_gen.unique_routes_routes()
+            break;
+        default:
+            console.log("WARNING: Unknown route type")
+            query = "";
+    }
 
     if (type === "unique_routes") {
         await endpoint.query_routes(query).then(db_routes => {
             for (let route of db_routes) {
-                routes.push(route);
 
-                add_polyline(route.master_activity_id, route.polyline);
+                routes.push(route);
+                map.add_polyline(route.master_activity_id, route.polyline);
             }
+
+            if (db_routes.length) map.center_view(db_routes[0]._id);
         });
     }
     else {
@@ -114,10 +121,13 @@ async function onRouteTypeRequested(type: String) {
                     se.segment.effort_series = reactive([]);
                 });
 
+                activity.master_activity_id = activity._id;
+                activity.activities = [];
                 activities.push(activity);
+                map.add_polyline(activity._id, activity.map.polyline);            
+            });
 
-                add_polyline(activity._id, activity.map.polyline);
-            })
+            if (db_activities.length) map.center_view(db_activities[0]._id);
         });
     }
 }
@@ -154,13 +164,10 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
 </script>
 
 <template>
-    <RouteList class="absolute routeList" style="z-index: 2;" v-bind:routes="routes" v-on:selectedRoute="onRouteSelected"
-        v-on:hoveredRoute="onRouteHovered" v-bind:hovered_id="hovered_id" v-on:unhoveredRoute="onRouteUnhovered"
-        v-on:segmentEffortsRequested="onSegmentEffortsRequested"></RouteList>
-
-    <ActivitiesList class="absolute routeList" style="z-index: 2;" v-bind:activities="activities"
-        v-bind:hovered_id="hovered_id" v-on:selectedActivity="onActivitySelected" v-on:hoveredActivity="onActivityHovered"
-        v-on:unhoveredActivity="onActivityUnhovered" v-on:segmentEffortsRequested="onSegmentEffortsRequested">
+    <ActivitiesList class="absolute routeList" style="z-index: 2;" v-bind:activities="activities" v-bind:routes="routes"
+        v-bind:hovered_id="hovered_id" v-bind:selected_id="selected_id" v-on:selectedActivity="onActivitySelected"
+        v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered"
+        v-on:segmentEffortsRequested="onSegmentEffortsRequested">
     </ActivitiesList>
 
     <div class="absolute buttons-bar btn-group" style="z-index: 1;" role="group"
@@ -223,11 +230,8 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     right: 1em;
     top: 6em;
     max-width: 400px;
-}
-
-.list-group-item:hover {
-    border-width: 0px 0px 0px 3px;
-    border-color: var(--bs-blue);
+    height: 90%;
+    overflow-y: scroll;
 }
 
 @media (min-width: 1024px) {}

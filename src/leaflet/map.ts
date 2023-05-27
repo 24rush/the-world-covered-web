@@ -32,7 +32,10 @@ class PolylineCtx {
     constructor(public polyline: L.Polyline, public addedToMap: boolean) { }
 }
 
-export type HoverCbk = (id: number, state: boolean) => void;
+export type PolyHoverCbk = (id: number, state: boolean) => void;
+export type PolyClickedCbk = (id: number) => void;
+export type MapClickedCbk = () => void;
+
 type PolylineHandlerFnc = (id: number, polyline: L.Polyline) => void;
 
 export default class LeafletMap {
@@ -41,7 +44,10 @@ export default class LeafletMap {
     elem_id_to_polyline: Map<number, PolylineCtx> = new Map();
     elem_id_to_style: Map<number, Style> = new Map();
     colors_used: Array<string> = new Array();
-    hover_cbk: HoverCbk | undefined;
+    
+    map_clicked_cbk: MapClickedCbk | undefined;
+    hover_cbk: PolyHoverCbk | undefined;
+    poly_clicked_cbk: PolyClickedCbk | undefined;
 
     last_hovered_item_id: number = 0;
     last_centered_on_item_id: number = 0;
@@ -56,7 +62,17 @@ export default class LeafletMap {
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         }).addTo(this.map);
 
+        this.map.on("mousedown", (e) => {
+            if (this.map_clicked_cbk)
+                this.map_clicked_cbk();
+        });
+
+        this.map.on("moveend", (e) => {
+            this.last_centered_on_item_id = 0;
+        });
+
         this.map.on("zoomend", (e) => {
+            this.last_centered_on_item_id = 0;
             for (let poly of this.elem_id_to_polyline) {
                 let weight_for_zoom = Math.floor(this.map.getZoom() / 2.7);
 
@@ -68,8 +84,16 @@ export default class LeafletMap {
         });
     }
 
-    public register_hovered_handler(cbk: HoverCbk) {
+    public register_map_clicked_cbk(cbk: MapClickedCbk) {
+        this.map_clicked_cbk = cbk;
+    }
+
+    public register_hovered_handler(cbk: PolyHoverCbk) {
         this.hover_cbk = cbk;
+    }
+
+    public register_poly_clicked_handler(cbk: PolyClickedCbk) {
+        this.poly_clicked_cbk = cbk;
     }
 
     public center_view(elem_id: number) {
@@ -90,24 +114,25 @@ export default class LeafletMap {
         this.elem_id_to_polyline.set(id, new PolylineCtx(gps_points, true));
 
         let default_style = {
-            "weight": 6,
+            "weight": 4,
             "color": "#fc5200".toString()
         };
         gps_points.setStyle(default_style);
         this.elem_id_to_style.set(id, default_style);
 
         gps_points.on("mouseover", function () {
-            self.highlight_polyline(id, gps_points);
-
             if (self.hover_cbk)
                 self.hover_cbk(id, true);
         });
 
         gps_points.on("mouseout", function () {
-            self.unhighlight_polyline(id, gps_points);
-
             if (self.hover_cbk)
                 self.hover_cbk(id, false);
+        });
+
+        gps_points.on("mousedown", function () {
+            if (self.poly_clicked_cbk)
+                self.poly_clicked_cbk(id);
         });
 
         gps_points.addTo(this.map);
@@ -184,7 +209,7 @@ export default class LeafletMap {
         if (curr_style) {
             polyline.bringToFront();
             polyline.setStyle(HOVER_STYLE);
-            polyline.setStyle({ 'weight': curr_style.weight * 1.5 })
+            polyline.setStyle({ 'weight': curr_style.weight * 1.8 })
         }
     }
 
@@ -193,7 +218,7 @@ export default class LeafletMap {
 
         if (prev_style) {
             polyline.setStyle(prev_style);            
-            polyline.setStyle({ 'weight': prev_style.weight * 1 / 1.5 })
+            polyline.setStyle({ 'weight': prev_style.weight * 1 / 1.8 })
         }
     }
 }

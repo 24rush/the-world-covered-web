@@ -26,9 +26,11 @@ export class ActivityEffort {
 
 export default class Activity {
     public _id: number = 0;    
+    public master_activity_id: number = 0;
     public map: Map = new Map;
 
     public athlete_count: number = 0;
+    public description: String = "";
     public location_city?: String = "";
     public location_country: String = "";
 
@@ -39,4 +41,7 @@ export default class Activity {
     public total_elevation_gain: number = 0.0;
 
     public segment_efforts: ActivityEffort[] = [];
+
+    // View Model
+    public activities: number[] = [];
 }
