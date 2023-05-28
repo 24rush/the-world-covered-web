@@ -4,12 +4,18 @@ import DataEndpoint from '@/data_endpoint';
 import LeafletMap from '@/leaflet/map';
 import Route from '@/data_types/route';
 import ActivitiesList from './ActivitiesList.vue';
+import Segments from './Segments.vue';
 import QueryGen from '@/query_gen';
-import type Activity from '@/data_types/activity';
+import Activity from '@/data_types/activity';
 import type { DocumentId } from '@/data_types/activity';
 
+var routes_db = new Map<number, Route>();
 var routes = reactive<Route[]>([]);
+
+var activities_db = new Map<number, Activity>();
 var activities = reactive<Activity[]>([]);
+
+var selected_activity = ref<Activity>(new Activity());
 var hovered_id = ref(0);
 var selected_id = ref(0);
 
@@ -22,7 +28,7 @@ onMounted(async () => {
     map = new LeafletMap("map");
 
     // Events coming from map
-    map.register_hovered_handler((id: number, state: boolean) => {        
+    map.register_hovered_handler((id: number, state: boolean) => {
         document.getElementById("activity_" + id)?.parentElement?.scrollIntoView();
         state ? onActivityHovered(id) : onActivityUnhovered(id);
     });
@@ -36,6 +42,7 @@ onMounted(async () => {
 })
 
 function onActivityUnselected() {
+    selected_activity.value = new Activity();
     selected_id.value = 0;
     map.show_all();
 }
@@ -52,7 +59,8 @@ function onActivitySelected(activity_id: DocumentId) {
 
     hover_polyline_of_id(activity_id, true);
     hovered_id.value = 0;
-    selected_id.value = activity_id;    
+    selected_id.value = activity_id;
+    selected_activity.value = activities_db.get(activity_id) ?? new Activity();
 }
 
 function onActivityHovered(activity_id: DocumentId) {
@@ -77,7 +85,7 @@ function hover_polyline_of_id(id: number, hover: boolean) {
 }
 
 async function onRouteTypeRequested(type: String) {
-    activities.splice(0);
+    activities.splice(0)
     routes.splice(0);
     map.clear_all();
 
@@ -107,11 +115,15 @@ async function onRouteTypeRequested(type: String) {
         await endpoint.query_routes(query).then(db_routes => {
             for (let route of db_routes) {
 
+                routes_db.set(route._id, route);
                 routes.push(route);
                 map.add_polyline(route.master_activity_id, route.polyline);
             }
 
-            if (db_routes.length) map.center_view(db_routes[0]._id);
+            if (db_routes.length) {
+                onActivitySelected(db_routes[0]._id);
+                map.center_view(db_routes[0]._id);
+            }
         });
     }
     else {
@@ -123,11 +135,16 @@ async function onRouteTypeRequested(type: String) {
 
                 activity.master_activity_id = activity._id;
                 activity.activities = [];
+
                 activities.push(activity);
-                map.add_polyline(activity._id, activity.map.polyline);            
+                activities_db.set(activity._id, activity);
+                map.add_polyline(activity._id, activity.map.polyline);
             });
 
-            if (db_activities.length) map.center_view(db_activities[0]._id);
+            if (db_activities.length) {
+                onActivitySelected(db_activities[0]._id);
+                map.center_view(db_activities[0]._id);
+            }
         });
     }
 }
@@ -156,44 +173,46 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
         let segment = activity.segment_efforts.find(se => se.segment.id == seg_id);
         if (!segment) return;
 
-        segment.segment.effort_series.push({ type: 'line', name: "Distance from start", data: distance_from_start_data });
-        segment.segment.effort_series.push({ type: 'bar', name: "Moving time", data: moving_time_data });
+        segment.segment.effort_series.push({ type: 'line', name: "Distance from home", data: distance_from_start_data });        
+        segment.segment.effort_series.push({ type: 'area', name: "Moving time", data: moving_time_data });
     });
 }
 
 </script>
 
 <template>
+    <div id="map" style="z-index: 0;"> </div>
+
     <ActivitiesList class="absolute routeList" style="z-index: 2;" v-bind:activities="activities" v-bind:routes="routes"
         v-bind:hovered_id="hovered_id" v-bind:selected_id="selected_id" v-on:selectedActivity="onActivitySelected"
-        v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered"
-        v-on:segmentEffortsRequested="onSegmentEffortsRequested">
+        v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered">
     </ActivitiesList>
 
-    <div class="absolute buttons-bar btn-group" style="z-index: 1;" role="group"
-        aria-label="Basic radio toggle button group">
-        <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" checked>
-        <label class="btn btn-light buttons-bar-btn rounded-pill"
-            v-bind:onClick="() => onRouteTypeRequested('unique_routes')" for="btnradio1">unique routes</label>
+    <div class="absolute buttons-bar" style="display: flex; flex-wrap: wrap;">
+        <div class="btn-group" style="z-index: 1; flex-basis: 100%;" role="group"
+            aria-label="Basic radio toggle button group">
+            <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" checked>
+            <label class="btn btn-light buttons-bar-btn rounded-pill"
+                v-bind:onClick="() => onRouteTypeRequested('unique_routes')" for="btnradio1">all routes</label>
 
-        <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
-        <label class="btn btn-light buttons-bar-btn rounded-pill" v-bind:onClick="() => onRouteTypeRequested('epic_rides')"
-            for="btnradio2">epic rides</label>
+            <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
+            <label class="btn btn-light buttons-bar-btn rounded-pill"
+                v-bind:onClick="() => onRouteTypeRequested('epic_rides')" for="btnradio2">epic rides</label>
 
-        <input type="radio" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
-        <label class="btn btn-light buttons-bar-btn rounded-pill"
-            v-bind:onClick="() => onRouteTypeRequested('with_friends')" for="btnradio3">with friends</label>
+            <input type="radio" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
+            <label class="btn btn-light buttons-bar-btn rounded-pill"
+                v-bind:onClick="() => onRouteTypeRequested('with_friends')" for="btnradio3">with friends</label>
 
-        <input type="radio" class="btn-check" name="btnradio" id="btnradio4" autocomplete="off">
-        <label class="btn btn-light buttons-bar-btn rounded-pill" v-bind:onClick="() => onRouteTypeRequested('abroad')"
-            for="btnradio4">abroad</label>
+            <input type="radio" class="btn-check" name="btnradio" id="btnradio4" autocomplete="off">
+            <label class="btn btn-light buttons-bar-btn rounded-pill" v-bind:onClick="() => onRouteTypeRequested('abroad')"
+                for="btnradio4">abroad</label>
 
-        <input type="radio" class="btn-check" name="btnradio" id="btnradio5" autocomplete="off">
-        <label class="btn btn-light buttons-bar-btn rounded-pill" v-bind:onClick="() => onRouteTypeRequested('best_bang')"
-            for="btnradio5">best bang</label>
-    </div>
-
-    <div id="map" style="z-index: 0;">
+            <input type="radio" class="btn-check" name="btnradio" id="btnradio5" autocomplete="off">
+            <label class="btn btn-light buttons-bar-btn rounded-pill"
+                v-bind:onClick="() => onRouteTypeRequested('best_bang')" for="btnradio5">best bang</label>
+        </div>
+        <Segments v-bind:activity="selected_activity" v-on:segmentEffortsRequested="onSegmentEffortsRequested">
+        </Segments>
     </div>
 </template>
 
@@ -222,16 +241,15 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
 }
 
 .buttons-bar-btn {
-    margin-right: 0.5em;
-    font-weight: 300;
+    margin-right: 0.5em;   
 }
 
 .routeList {
     right: 1em;
-    top: 6em;
+    top: 11em;
     max-width: 400px;
     height: 90%;
-    overflow-y: scroll;
+    overflow-y: auto;
 }
 
 @media (min-width: 1024px) {}

@@ -1,5 +1,5 @@
 export default class QueryGen {
-    readonly RESULTS_LIMIT: number = 8;
+    readonly RESULTS_LIMIT: number = 12;
 
     constructor(private ath_id: number) { }
 
@@ -24,7 +24,7 @@ export default class QueryGen {
     }
 
     public efforts_on_seg_id(seg_id: number): any {
-        return [{ $match: { "segment_id": seg_id } }]
+        return [{ $match: { "segment_id": seg_id } }, { $sort : {"start_date_local": 1}}]
     }
 
     public unique_routes_routes(): any {
@@ -32,6 +32,6 @@ export default class QueryGen {
             $addFields: { act_count: { $size: { "$ifNull": ["$activities", []] } } }
         }, {
             $sort: { "act_count": -1 }
-        }, { "$limit": 70 }];
+        }, { "$limit": 15 }];
     }
 }
