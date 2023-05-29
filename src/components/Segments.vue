@@ -208,7 +208,7 @@ function segmentEffortsRequested(activity: Activity | undefined, seg_id: number,
 }
 
 .segment-carousel {
-    margin-top: 0.5em;
+    margin-top: 1.5em;
     width: 100%;
     position: absolute;
     left: 0;

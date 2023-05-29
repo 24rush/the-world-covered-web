@@ -183,7 +183,7 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
 <template>
     <div id="map" style="z-index: 0;"> </div>
 
-    <ActivitiesList class="absolute routeList" style="z-index: 2;" v-bind:activities="activities" v-bind:routes="routes"
+    <ActivitiesList class="absolute" style="z-index: 2;" v-bind:activities="activities" v-bind:routes="routes"
         v-bind:hovered_id="hovered_id" v-bind:selected_id="selected_id" v-on:selectedActivity="onActivitySelected"
         v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered">
     </ActivitiesList>
@@ -242,14 +242,6 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
 
 .buttons-bar-btn {
     margin-right: 0.5em;   
-}
-
-.routeList {
-    right: 1em;
-    top: 11em;
-    max-width: 400px;
-    height: 90%;
-    overflow-y: auto;
 }
 
 @media (min-width: 1024px) {}
