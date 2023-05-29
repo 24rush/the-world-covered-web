@@ -4,10 +4,16 @@ class Map {
     public polyline: string = "";
 }
 
-class EffortSeries {
+export class EffortSeriesData {
+    public x: String = "";
+    public y: number = 0;
+    public activity_id: DocumentId = 0;
+}
+
+export class EffortSeries {
     public type: String = "";
     public name: String = "";
-    public data: number[] = [];
+    public data: EffortSeriesData[] = [];
 }
 
 class ActivitySegment {

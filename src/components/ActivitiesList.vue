@@ -27,7 +27,7 @@ function onSelectedActivity(activity_id: DocumentId) {
 }
 
 function onHoveredActivity(activity_id: DocumentId) {
-    emit('hoveredActivity', activity_id)
+    emit('hoveredActivity', activity_id);
 }
 
 function onUnhoveredActivity(activity_id: DocumentId) {
@@ -39,11 +39,11 @@ function onUnhoveredActivity(activity_id: DocumentId) {
     <div class="routeList" :class="{ 'routeList-mobile': isMobile() }">
         <ul class="list-group">
             <div style="cursor: pointer" v-for="activity in (activities?.length ? activities : routes)"
-                :key="activity.master_activity_id">
-                <MiniActivityVue v-if="isMobile()" :activity="activity" :id="activity.master_activity_id"
-                    v-on:selected-activity="onSelectedActivity" :count_times="activity.activities.length"
+                :key="activity.master_activity_id">                
+                <MiniActivityVue v-if="isMobile()" :activity="activity" :id="activity.master_activity_id" :selected_id="selected_id"
+                    v-on:selected-activity="onSelectedActivity" :count_times="activity.activities.length"                    
                     v-on:segmentEffortsRequested="onSegmentEffortsRequested" />
-                <ActivityVue v-else :activity="activity" :id="activity.master_activity_id"
+                <ActivityVue v-else :activity="activity" :id="activity.master_activity_id" v-bind:hovered_id="hovered_id" :selected_id="selected_id"               
                     v-on:selected-activity="onSelectedActivity" v-on:hovered-activity="onHoveredActivity"
                     v-on:unhovered-activity="onUnhoveredActivity" :count_times="activity.activities.length"
                     v-on:segmentEffortsRequested="onSegmentEffortsRequested" />
@@ -55,26 +55,6 @@ function onUnhoveredActivity(activity_id: DocumentId) {
 <style>
 .badge-item {
     padding-right: 0.5em;
-}
-
-.list-group-item-hover {
-    border-width: 0px 0px 0px 5px;
-    border-color: var(--bs-blue);
-
-    transform: translateX(-5px);
-    transition: transform .2s;
-
-    background-color: aliceblue !important;
-}
-
-.list-group-item-selected {
-    border-width: 0px 0px 0px 5px;
-    border-color: var(--bs-orange);
-
-    transform: translateX(-5px);
-    transition: transform .2s;
-
-    background-color: bisque !important;
 }
 
 .routeList {

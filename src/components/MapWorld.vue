@@ -6,7 +6,7 @@ import Route from '@/data_types/route';
 import ActivitiesList from './ActivitiesList.vue';
 import Segments from './Segments.vue';
 import QueryGen from '@/query_gen';
-import Activity from '@/data_types/activity';
+import Activity, { EffortSeriesData } from '@/data_types/activity';
 import type { DocumentId } from '@/data_types/activity';
 
 var routes_db = new Map<number, Route>();
@@ -21,7 +21,7 @@ var selected_id = ref(0);
 
 var map: LeafletMap;
 var endpoint: DataEndpoint;
-var query_gen: QueryGen = new QueryGen(4399230);
+var query_gen: QueryGen = new QueryGen(4399230); // Athlete id which is required for some queries
 
 onMounted(async () => {
     endpoint = new DataEndpoint("localhost");
@@ -41,26 +41,40 @@ onMounted(async () => {
     onRouteTypeRequested("unique_routes");
 })
 
-function onActivityUnselected() {
+function onActivityUnselected(activity_id: DocumentId) {
     selected_activity.value = new Activity();
     selected_id.value = 0;
+    hovered_id.value = activity_id;
     map.show_all();
 }
 
 function onActivitySelected(activity_id: DocumentId) {
     if (selected_id.value == activity_id) {
-        onActivityUnselected();
+        onActivityUnselected(activity_id);
         return;
     }
 
-    map.hide_all();
-    map.show_only(activity_id);
-    map.center_view(activity_id);
+    let select_activity = (activity: Activity) => {
+        hovered_id.value = 0;
+        selected_activity.value = activity;
+        selected_id.value = activity_id;
 
-    hover_polyline_of_id(activity_id, true);
-    hovered_id.value = 0;
-    selected_id.value = activity_id;
-    selected_activity.value = activities_db.get(activity_id) ?? new Activity();
+        map.hide_all();
+        map.show_only(activity_id);
+        map.center_view(activity_id);
+
+        hover_polyline_of_id(activity_id, true);
+    };
+
+    let cached_act = activities_db.get(activity_id);
+
+    if (!cached_act) {
+        retrieve_activity(activity_id).then(activity => {
+            select_activity(activity);
+        });
+    } else {
+        select_activity(cached_act);
+    }
 }
 
 function onActivityHovered(activity_id: DocumentId) {
@@ -82,6 +96,25 @@ function onActivityUnhovered(activity_id: DocumentId) {
 
 function hover_polyline_of_id(id: number, hover: boolean) {
     hover ? map.highlight_elem_id(id) : map.unhighlight_elem_id(id);
+}
+
+function register_new_activity(activity: Activity) {
+    activity.segment_efforts.forEach(se => {
+        se.segment.effort_series = reactive([]);
+    });
+
+    activity.master_activity_id = activity._id;
+    activity.activities = [];
+    activities_db.set(activity._id, activity);
+    map.add_polyline(activity._id, activity.map.polyline);
+}
+
+function retrieve_activity(id: number): Promise<Activity> {
+    return endpoint.get_activities_with_id([id]).then(activities => {
+        register_new_activity(activities[0]);
+
+        return activities[0];
+    });
 }
 
 async function onRouteTypeRequested(type: String) {
@@ -112,38 +145,29 @@ async function onRouteTypeRequested(type: String) {
     }
 
     if (type === "unique_routes") {
-        await endpoint.query_routes(query).then(db_routes => {
-            for (let route of db_routes) {
-
+        await endpoint.query_routes(query).then(res_routes => {
+            res_routes.forEach(route => {
                 routes_db.set(route._id, route);
                 routes.push(route);
-                map.add_polyline(route.master_activity_id, route.polyline);
-            }
 
-            if (db_routes.length) {
-                onActivitySelected(db_routes[0]._id);
-                map.center_view(db_routes[0]._id);
+                // Routes contain the polyline of the master activity
+                map.add_polyline(route.master_activity_id, route.polyline);
+            });
+
+            if (res_routes.length) {
+                onActivitySelected(res_routes[0].master_activity_id);
             }
         });
     }
     else {
-        await endpoint.query_activities(query).then(db_activities => {
-            db_activities.forEach(activity => {
-                activity.segment_efforts.forEach(se => {
-                    se.segment.effort_series = reactive([]);
-                });
-
-                activity.master_activity_id = activity._id;
-                activity.activities = [];
-
+        await endpoint.query_activities(query).then(res_activities => {
+            res_activities.forEach(activity => {
+                register_new_activity(activity);
                 activities.push(activity);
-                activities_db.set(activity._id, activity);
-                map.add_polyline(activity._id, activity.map.polyline);
             });
 
-            if (db_activities.length) {
-                onActivitySelected(db_activities[0]._id);
-                map.center_view(db_activities[0]._id);
+            if (res_activities.length) {
+                onActivitySelected(res_activities[0]._id);
             }
         });
     }
@@ -156,8 +180,8 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     }
 
     endpoint.query_efforts(query_gen.efforts_on_seg_id(seg_id)).then(efforts => {
-        let moving_time_data: any[] = [];
-        let distance_from_start_data: any[] = [];
+        let moving_time_data: EffortSeriesData[] = [];
+        let distance_from_start_data: EffortSeriesData[] = [];
 
         for (let effort of efforts) {
             let date = (new Date(effort.start_date_local.toString())).toLocaleDateString('ro-RO', {
@@ -166,14 +190,14 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
                 year: '2-digit',
             });
 
-            moving_time_data.push({ 'x': date, 'y': effort.moving_time as number });
-            distance_from_start_data.push({ 'x': date, 'y': (effort.distance_from_start as number).toFixed(1) });
+            moving_time_data.push({ 'x': date, 'y': effort.moving_time as number, 'activity_id': effort.activity_id as number });
+            distance_from_start_data.push({ 'x': date, 'y': parseFloat((effort.distance_from_start as number).toFixed(1)), 'activity_id': effort.activity_id as number });
         }
 
         let segment = activity.segment_efforts.find(se => se.segment.id == seg_id);
         if (!segment) return;
 
-        segment.segment.effort_series.push({ type: 'line', name: "Distance from home", data: distance_from_start_data });        
+        segment.segment.effort_series.push({ type: 'line', name: "Distance from home", data: distance_from_start_data });
         segment.segment.effort_series.push({ type: 'area', name: "Moving time", data: moving_time_data });
     });
 }
@@ -241,7 +265,10 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
 }
 
 .buttons-bar-btn {
-    margin-right: 0.5em;   
+    margin-right: 0.5em;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 @media (min-width: 1024px) {}

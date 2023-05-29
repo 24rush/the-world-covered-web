@@ -101,4 +101,26 @@ function pace_formatter(m_per_sec: number): String {
 .strava_logo:hover {
     opacity: 0.5;
     background-color: transparent;
-}</style>
+}
+
+.list-group-item-hover {
+    border-width: 0px 0px 0px 5px;
+    border-color: var(--bs-blue);
+
+    transform: translateX(0px);
+    transition: transform .2s;
+
+    background-color: aliceblue !important;
+}
+
+.list-group-item-selected {
+    border-width: 0px 0px 0px 5px;
+    border-color: var(--bs-orange);
+
+    transform: translateX(0px);
+    transition: transform .2s;
+
+    background-color: bisque !important;
+}
+
+</style>

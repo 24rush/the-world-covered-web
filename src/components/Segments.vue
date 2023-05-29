@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import Activity from '@/data_types/activity';
+import Activity, { EffortSeries, EffortSeriesData } from '@/data_types/activity';
 import gradient from '@/icons/gradient.vue';
+
 import Route from '@/data_types/route';
 import { reactive, type PropType, onMounted } from 'vue';
 import { Carousel } from 'bootstrap'
+import Strava from '@/icons/strava.vue';
 
 const emit = defineEmits(['segmentEffortsRequested'])
 
@@ -109,9 +111,13 @@ function segmentEffortsRequested(activity: Activity | undefined, seg_id: number,
     }
 }
 
+function min_effort(series: EffortSeries): EffortSeriesData {
+    return series.data.reduce((a, b) => a.y < b.y ? a : b);
+}
+
 </script>
 <template>
-    <div v-if="activity && activity?._id != 0" id="segmentCarousel" class="carousel segment-carousel slide">
+    <div v-if="activity && activity?.master_activity_id != 0" id="segmentCarousel" class="carousel segment-carousel slide">
         <div class="carousel-inner" style="width: 85%; margin: auto;">
             <div v-for="(effort, index) in activity.segment_efforts" :key="effort.id" class="carousel-item"
                 :class="{ 'active': index == 0 }">
@@ -124,6 +130,8 @@ function segmentEffortsRequested(activity: Activity | undefined, seg_id: number,
                                 v-bind:aria-controls="'collapse' + effort.id.toString()">
                                 <div>
                                     <span>{{ effort.name }}</span>
+                                    <span v-if="effort.segment.effort_series.length">&nbsp;({{
+                                        effort.segment.effort_series[0].data.length }} efforts)</span>
                                     <div class="ml-1">
                                         <span style="padding-right: 0.5em;">{{
                                             distance_formatter(effort.segment.distance)
@@ -143,7 +151,22 @@ function segmentEffortsRequested(activity: Activity | undefined, seg_id: number,
                         </span>
                         <div v-bind:id="'collapse' + effort.id.toString()" class="accordion-collapse hide collapse"
                             v-bind:aria-labelledby="'header' + effort.id.toString()">
-                            <div>
+                            <div v-if="effort.segment.effort_series.length" style="padding-left: 1.8em; padding-top: 0.7em;">
+                                <span>Best </span>
+                                <span class="fw-bold">{{
+                                    time_formatter(min_effort(effort.segment.effort_series[1]).y) }}</span>
+                                <span> on </span>
+                                <span class="fw-bold">{{
+                                    min_effort(effort.segment.effort_series[1]).x
+                                }}</span>
+
+                                <span style="padding-left: 0.2em;"><a class="strava_logo"
+                                        v-bind:href="`https://www.strava.com/activities/${min_effort(effort.segment.effort_series[1]).activity_id}`"
+                                        target="_blank">
+                                        <Strava />
+                                    </a></span>
+                            </div>
+                            <div style="margin-top: -0.5em;">
                                 <apexchart class="apex-chart" :options="chartOptions"
                                     :series="effort.segment.effort_series">
                                 </apexchart>

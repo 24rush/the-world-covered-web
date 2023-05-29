@@ -67,6 +67,10 @@ export default class LeafletMap {
                 this.map_clicked_cbk();
         });
 
+        this.map.on("dragend", (e) => {
+            console.log(this.map.getCenter());
+        });
+
         this.map.on("moveend", (e) => {
             this.last_centered_on_item_id = 0;
         });

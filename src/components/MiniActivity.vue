@@ -51,7 +51,7 @@ function country_formatter(country: String): String {
 
 <template>
     <div class="activity_container list-group-item list-group-item-action"
-        :class="{ 'list-group-item-selected': selected_id === activity.master_activity_id }"
+        :class="{ 'list-group-item-selected-mobile': selected_id === activity.master_activity_id }"
         :key="activity.master_activity_id" v-on:mousedown="emit('selectedActivity', activity.master_activity_id)">
 
         <div class="d-flex justify-content-between align-items-center" style="line-height: 1.2; flex-direction: column;" v-bind:id="'activity_' + id">
@@ -86,4 +86,12 @@ function country_formatter(country: String): String {
     border-radius: 50px;
     margin-bottom: 0.25em;
 }
+
+.list-group-item-selected-mobile {
+    border-width: 2px;
+    border-color: var(--bs-orange);
+    
+    background-color: bisque !important;
+}
+
 </style>

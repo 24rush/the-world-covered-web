@@ -2,6 +2,7 @@ import type Activity from "./data_types/activity";
 import type Effort from "./data_types/effort";
 import type Route from "./data_types/route";
 import * as Realm from "realm-web";
+import QueryGen from "./query_gen";
 const {
     BSON: { ObjectId },
 } = Realm;
@@ -48,7 +49,7 @@ export default class DataEndpoint {
     }
 
     async get_activities_with_id(ids: number[]): Promise<Activity[]> {
-        return this.post_data('/query_activities', { "_id": { "$in": ids } });
+        return this.post_data('/query_activities', QueryGen.acts_in_ids(ids));
     }
 
     async query_routes(query: any): Promise<Route[]> {

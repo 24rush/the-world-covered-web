@@ -3,7 +3,7 @@ export default class QueryGen {
 
     constructor(private ath_id: number) { }
 
-    public acts_in_ids(ids: number[]): any {
+    public static acts_in_ids(ids: number[]): any {
         return [{ "$match": { "_id": { "$in": ids } } }];
     }
 
