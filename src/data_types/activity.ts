@@ -1,3 +1,5 @@
+import { LatLng } from "leaflet";
+
 export type DocumentId = number;
 
 class Map {
@@ -39,7 +41,8 @@ export default class Activity {
     public description: String = "";
     public location_city?: String = "";
     public location_country: String = "";
-
+    public start_date_local: String = "";
+    
     public type: String = "";
     public distance: number = 0.0;
     public average_speed: number = 0.0;
@@ -50,4 +53,5 @@ export default class Activity {
 
     // View Model
     public activities: number[] = [];
+    public coords_center: LatLng = new LatLng(0,0);
 }

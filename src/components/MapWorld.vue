@@ -8,6 +8,7 @@ import Segments from './Segments.vue';
 import QueryGen from '@/query_gen';
 import Activity, { EffortSeriesData } from '@/data_types/activity';
 import type { DocumentId } from '@/data_types/activity';
+import type { LatLng } from 'leaflet';
 
 var routes_db = new Map<number, Route>();
 var routes = reactive<Route[]>([]);
@@ -22,6 +23,9 @@ var selected_id = ref(0);
 var map: LeafletMap;
 var endpoint: DataEndpoint;
 var query_gen: QueryGen = new QueryGen(4399230); // Athlete id which is required for some queries
+var current_page = 0;
+var current_route_type = "unique_routes";
+var has_more_data = ref(true);
 
 onMounted(async () => {
     endpoint = new DataEndpoint("localhost");
@@ -29,17 +33,33 @@ onMounted(async () => {
 
     // Events coming from map
     map.register_hovered_handler((id: number, state: boolean) => {
-        document.getElementById("activity_" + id)?.parentElement?.scrollIntoView();
+        bring_activity_into_view(id);
         state ? onActivityHovered(id) : onActivityUnhovered(id);
     });
 
     map.register_poly_clicked_handler((id: number) => {
-        document.getElementById("activity_" + id)?.parentElement?.scrollIntoView();
+        bring_activity_into_view(id);
         onActivitySelected(id);
+    });
+
+    map.register_map_centered_at_cbk((new_center: LatLng) => {
+        if (selected_id.value != 0) {
+            return
+        }
+
+        let closest_act = find_activity_closest_to(new_center);
+
+        if (closest_act) {
+            bring_activity_into_view(closest_act._id);
+        }
     });
 
     onRouteTypeRequested("unique_routes");
 })
+
+function bring_activity_into_view(activity_id: number) {
+    document.getElementById("activity_" + activity_id)?.parentElement?.scrollIntoView(true);
+}
 
 function onActivityUnselected(activity_id: DocumentId) {
     selected_activity.value = new Activity();
@@ -94,11 +114,56 @@ function onActivityUnhovered(activity_id: DocumentId) {
     hover_polyline_of_id(activity_id, false);
 }
 
+function onNextPageRequested(page: number) {
+    current_page = page;
+    query_gen.set_page(current_page);
+    retrieve_query_type(current_route_type);
+}
+
 function hover_polyline_of_id(id: number, hover: boolean) {
     hover ? map.highlight_elem_id(id) : map.unhighlight_elem_id(id);
 }
 
-function register_new_activity(activity: Activity) {
+function calcCrow(a: LatLng, b: LatLng) {
+    var R = 6371; // km
+    var dLat = toRad(b.lat - a.lat);
+    var dLon = toRad(b.lng - a.lng);
+    var lat1 = toRad(a.lat);
+    var lat2 = toRad(b.lat);
+
+    let A = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+    var c = 2 * Math.atan2(Math.sqrt(A), Math.sqrt(1 - A));
+    var d = R * c;
+    return d;
+}
+
+// Converts numeric degrees to radians
+function toRad(value: number): number {
+    return value * Math.PI / 180;
+}
+
+function find_activity_closest_to(point: LatLng): Activity | undefined {
+    let curr_min = 0;
+    let curr_min_act: Activity | undefined = undefined;
+
+    activities_db.forEach((act) => {
+        let dist = calcCrow(point, act.coords_center);
+
+        if (curr_min == 0 || dist < curr_min) {
+            curr_min = dist;
+            curr_min_act = act;
+        }
+    });
+
+    return curr_min_act;
+}
+
+function register_new_activity(activity: Activity): boolean {
+    if (activities_db.get(activity._id)) {
+        return false;
+    }
+
     activity.segment_efforts.forEach(se => {
         se.segment.effort_series = reactive([]);
     });
@@ -106,7 +171,11 @@ function register_new_activity(activity: Activity) {
     activity.master_activity_id = activity._id;
     activity.activities = [];
     activities_db.set(activity._id, activity);
-    map.add_polyline(activity._id, activity.map.polyline);
+
+    let coords = map.add_polyline(activity._id, activity.map.polyline);
+    activity.coords_center = coords.getCenter();
+
+    return true;
 }
 
 function retrieve_activity(id: number): Promise<Activity> {
@@ -117,11 +186,7 @@ function retrieve_activity(id: number): Promise<Activity> {
     });
 }
 
-async function onRouteTypeRequested(type: String) {
-    activities.splice(0)
-    routes.splice(0);
-    map.clear_all();
-
+async function retrieve_query_type(type: string) {
     let query = "";
     switch (type) {
         case "with_friends":
@@ -147,6 +212,9 @@ async function onRouteTypeRequested(type: String) {
     if (type === "unique_routes") {
         await endpoint.query_routes(query).then(res_routes => {
             res_routes.forEach(route => {
+                if (routes_db.get(route._id))
+                    return;
+
                 routes_db.set(route._id, route);
                 routes.push(route);
 
@@ -154,23 +222,50 @@ async function onRouteTypeRequested(type: String) {
                 map.add_polyline(route.master_activity_id, route.polyline);
             });
 
-            if (res_routes.length) {
-                onActivitySelected(res_routes[0].master_activity_id);
+            has_more_data.value = res_routes.length == query_gen.get_results_per_page();
+
+            if (routes.length) {
+                if (current_page == 0)
+                    onActivitySelected(routes[0].master_activity_id);
+                else
+                    setTimeout(() => { bring_activity_into_view(routes[routes.length - 1].master_activity_id); });
             }
         });
     }
     else {
         await endpoint.query_activities(query).then(res_activities => {
             res_activities.forEach(activity => {
-                register_new_activity(activity);
-                activities.push(activity);
+                if (register_new_activity(activity)) {
+                    activities.push(activity);
+                }
             });
 
-            if (res_activities.length) {
-                onActivitySelected(res_activities[0]._id);
+            has_more_data.value = res_activities.length == query_gen.get_results_per_page();
+
+            if (activities.length) {
+                if (current_page == 0)
+                    onActivitySelected(activities[0]._id);
+                else
+                    setTimeout(() => { bring_activity_into_view(activities[activities.length - 1]._id); });
             }
+
         });
     }
+}
+
+async function onRouteTypeRequested(type: String) {
+    activities.splice(0)
+    routes.splice(0);
+    activities_db.clear();
+    routes_db.clear();
+    map.clear_all();
+    
+    current_route_type = type.toString();
+    current_page = 0;
+    query_gen.set_page(current_page);
+    has_more_data.value = true;
+
+    retrieve_query_type(current_route_type);
 }
 
 function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
@@ -207,9 +302,10 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
 <template>
     <div id="map" style="z-index: 0;"> </div>
 
-    <ActivitiesList class="absolute" style="z-index: 2;" v-bind:activities="activities" v-bind:routes="routes"
+    <ActivitiesList class="absolute" style="z-index: 2;" v-bind:activities="activities" v-bind:routes="routes" v-bind:has_more_data="has_more_data"
         v-bind:hovered_id="hovered_id" v-bind:selected_id="selected_id" v-on:selectedActivity="onActivitySelected"
-        v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered">
+        v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered"
+        v-on:on-next-page-requested="onNextPageRequested">
     </ActivitiesList>
 
     <div class="absolute buttons-bar" style="display: flex; flex-wrap: wrap;">

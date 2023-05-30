@@ -8,7 +8,7 @@ import hiking from '@/icons/hiking.vue';
 import { type PropType } from 'vue';
 import Route from '@/data_types/route';
 
-const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity', 'segmentEffortsRequested'])
+const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity'])
 
 const props = defineProps({
     activity: {
@@ -36,10 +36,23 @@ function pace_formatter(m_per_sec: number): String {
     return minutes + ":" + (seconds < 10 ? '0' + seconds : seconds)
 }
 
+function date_formatter(date_str: String): String {
+    if (!date_str) return "";
+
+    let langCode = "ro-RO";
+    let date = new Date(date_str.toString());
+
+    var day = date.toLocaleString(langCode, { day: '2-digit' });   // DD
+    var month = date.toLocaleString(langCode, { month: 'short' }); // MMM
+    var year = date.toLocaleString(langCode, { year: 'numeric' }); // YYYY
+
+    return ` ${month} ${year}`;
+}
+
 </script>
 
 <template>
-    <div class="activity_container list-group-item list-group-item-action d-flex justify-content-between align-items-start"
+    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
         :class="{ 'list-group-item-hover': hovered_id === activity.master_activity_id && selected_id == 0, 'list-group-item-selected': selected_id === activity.master_activity_id }"
         :key="activity.master_activity_id" v-on:mouseover="emit('hoveredActivity', activity.master_activity_id)"
         v-on:mouseleave="emit('unhoveredActivity', activity.master_activity_id)"
@@ -51,6 +64,7 @@ function pace_formatter(m_per_sec: number): String {
                     <span class="fw-bold" v-if="activity.location_city">{{ activity.location_city
                     }}, </span>
                     <span class="fw-bold">{{ activity.location_country }}</span>
+                    <span class="fs-small">{{ date_formatter(activity.start_date_local) }}</span>
                     <div>
                         <span v-if="activity.description && activity.activities.length <= 1" class="">{{
                             activity.description }}</span>
@@ -98,6 +112,10 @@ function pace_formatter(m_per_sec: number): String {
     font-weight: 300;
 }
 
+.fs-small {
+    font-size: small;
+}
+
 .strava_logo:hover {
     opacity: 0.5;
     background-color: transparent;
@@ -122,5 +140,4 @@ function pace_formatter(m_per_sec: number): String {
 
     background-color: bisque !important;
 }
-
 </style>

@@ -15,6 +15,7 @@ export default class Route {
 
     public location_city: String = "";
     public location_country: String = "";
+    public start_date_local: String = "";
 
     // View model
     public athlete_count: number = 0;

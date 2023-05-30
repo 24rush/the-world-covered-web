@@ -2,13 +2,11 @@
 import Activity from '@/data_types/activity';
 import running from '@/icons/running.vue';
 import cycling from '@/icons/cycling.vue';
-import mountain from '@/icons/mountain.vue';
-import strava from '@/icons/strava.vue';
 import hiking from '@/icons/hiking.vue';
 import { type PropType } from 'vue';
 import Route from '@/data_types/route';
 
-const emit = defineEmits(['selectedActivity', 'segmentEffortsRequested'])
+const emit = defineEmits(['selectedActivity'])
 
 const props = defineProps({
     activity: {
@@ -42,6 +40,8 @@ function country_formatter(country: String): String {
         case "portugal": return "PT"
         case "the netherlands": return "NL"
         case "netherlands": return "NL"
+        case "switzerland": return "CH"
+        case "bulgaria": return "BG"
     }
 
     return country;
@@ -80,11 +80,6 @@ function country_formatter(country: String): String {
 <style scoped>
 .stats-item {    
     font-weight: 300;
-}
-
-.activity_container {
-    border-radius: 50px;
-    margin-bottom: 0.25em;
 }
 
 .list-group-item-selected-mobile {

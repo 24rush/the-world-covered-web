@@ -35,6 +35,7 @@ class PolylineCtx {
 export type PolyHoverCbk = (id: number, state: boolean) => void;
 export type PolyClickedCbk = (id: number) => void;
 export type MapClickedCbk = () => void;
+export type MapCenteredAtCbk = (center: LatLng) => void;
 
 type PolylineHandlerFnc = (id: number, polyline: L.Polyline) => void;
 
@@ -46,6 +47,7 @@ export default class LeafletMap {
     colors_used: Array<string> = new Array();
     
     map_clicked_cbk: MapClickedCbk | undefined;
+    map_centered_at_cbk: MapCenteredAtCbk | undefined;
     hover_cbk: PolyHoverCbk | undefined;
     poly_clicked_cbk: PolyClickedCbk | undefined;
 
@@ -68,7 +70,8 @@ export default class LeafletMap {
         });
 
         this.map.on("dragend", (e) => {
-            console.log(this.map.getCenter());
+            if (this.map_centered_at_cbk)
+                this.map_centered_at_cbk(this.map.getCenter());
         });
 
         this.map.on("moveend", (e) => {
@@ -90,6 +93,10 @@ export default class LeafletMap {
 
     public register_map_clicked_cbk(cbk: MapClickedCbk) {
         this.map_clicked_cbk = cbk;
+    }
+
+    public register_map_centered_at_cbk(cbk: MapCenteredAtCbk) {
+        this.map_centered_at_cbk = cbk;
     }
 
     public register_hovered_handler(cbk: PolyHoverCbk) {
