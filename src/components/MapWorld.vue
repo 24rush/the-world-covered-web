@@ -8,7 +8,7 @@ import Segments from './Segments.vue';
 import QueryGen from '@/query_gen';
 import Activity, { EffortSeriesData } from '@/data_types/activity';
 import type { DocumentId } from '@/data_types/activity';
-import type { LatLng } from 'leaflet';
+import { LatLng } from 'leaflet';
 
 var routes_db = new Map<number, Route>();
 var routes = reactive<Route[]>([]);
@@ -43,7 +43,7 @@ onMounted(async () => {
     });
 
     map.register_map_centered_at_cbk((new_center: LatLng) => {
-        if (selected_id.value != 0) {
+        if (selected_id.value != 0 && activities.length) {
             return
         }
 
@@ -54,7 +54,18 @@ onMounted(async () => {
         }
     });
 
-    onRouteTypeRequested("unique_routes");
+    // Verify if we have a special URL
+    // 1. actid=<>
+    let act_id = (new URL(window.location.href)).searchParams.get("actid");
+    if (act_id) {
+        // Send it to center in case activity id does not exist
+        map.center_at_latlng(new LatLng(44.4, 26));
+        onRouteTypeRequested("activity_id", parseInt(act_id));
+    }
+    else {
+        onRouteTypeRequested("unique_routes");
+        (document.getElementById('btnradio_unique') as HTMLInputElement).checked = true;
+    }
 })
 
 function bring_activity_into_view(activity_id: number) {
@@ -161,6 +172,7 @@ function find_activity_closest_to(point: LatLng): Activity | undefined {
 }
 
 function register_new_activity(activity: Activity): boolean {
+
     if (activities_db.get(activity._id)) {
         return false;
     }
@@ -170,12 +182,11 @@ function register_new_activity(activity: Activity): boolean {
     });
 
     activity.master_activity_id = activity._id;
-    activity.activities = [];
-    activities_db.set(activity._id, activity);
+    activity.activities = [];    
 
     let coords = map.add_polyline(activity._id, activity.map.polyline);
     activity.coords_center = coords.getCenter();
-
+    activities_db.set(activity._id, activity);
     return true;
 }
 
@@ -187,7 +198,7 @@ function retrieve_activity(id: number): Promise<Activity> {
     });
 }
 
-async function retrieve_query_type(type: string) {
+async function retrieve_query_type(type: string, activity_id?: DocumentId) {
     let query = "";
     switch (type) {
         case "with_friends":
@@ -205,10 +216,20 @@ async function retrieve_query_type(type: string) {
         case "unique_routes":
             query = query_gen.unique_routes_routes()
             break;
+        case "activity_id":
+            if (activity_id) {
+                query = QueryGen.acts_in_ids([activity_id]);
+            } else {
+                console.log("WARNING: Activity ID missing for query")
+            }
+            break;
         default:
             console.log("WARNING: Unknown route type")
             query = "";
     }
+
+    if (query === "")
+        return;
 
     if (type === "unique_routes") {
         await endpoint.query_routes(query).then(res_routes => {
@@ -254,19 +275,19 @@ async function retrieve_query_type(type: string) {
     }
 }
 
-async function onRouteTypeRequested(type: String) {
+async function onRouteTypeRequested(type: String, activity_id?: DocumentId) {
     activities.splice(0)
     routes.splice(0);
     activities_db.clear();
     routes_db.clear();
     map.clear_all();
-    
+
     current_route_type = type.toString();
     current_page = 0;
     query_gen.set_page(current_page);
     has_more_data.value = true;
 
-    retrieve_query_type(current_route_type);
+    retrieve_query_type(current_route_type, activity_id);
 }
 
 function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
@@ -303,18 +324,18 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
 <template>
     <div id="map" style="z-index: 0;"> </div>
 
-    <ActivitiesList class="absolute" style="z-index: 2;" v-bind:activities="activities" v-bind:routes="routes" v-bind:has_more_data="has_more_data"
-        v-bind:hovered_id="hovered_id" v-bind:selected_id="selected_id" v-on:selectedActivity="onActivitySelected"
-        v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered"
-        v-on:on-next-page-requested="onNextPageRequested">
+    <ActivitiesList class="absolute" style="z-index: 2;" v-bind:activities="activities" v-bind:routes="routes"
+        v-bind:has_more_data="has_more_data" v-bind:hovered_id="hovered_id" v-bind:selected_id="selected_id"
+        v-on:selectedActivity="onActivitySelected" v-on:hoveredActivity="onActivityHovered"
+        v-on:unhoveredActivity="onActivityUnhovered" v-on:on-next-page-requested="onNextPageRequested">
     </ActivitiesList>
 
     <div class="absolute buttons-bar" style="display: flex; flex-wrap: wrap;">
         <div class="btn-group" style="z-index: 1; flex-basis: 100%;" role="group"
             aria-label="Basic radio toggle button group">
-            <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" checked>
+            <input type="radio" class="btn-check" name="btnradio" id="btnradio_unique" autocomplete="off">
             <label class="btn btn-light buttons-bar-btn rounded-pill"
-                v-bind:onClick="() => onRouteTypeRequested('unique_routes')" for="btnradio1">all routes</label>
+                v-bind:onClick="() => onRouteTypeRequested('unique_routes')" for="btnradio_unique">all routes</label>
 
             <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
             <label class="btn btn-light buttons-bar-btn rounded-pill"

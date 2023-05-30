@@ -1,5 +1,5 @@
 import PolylineDecoder from "@/data_types/polyline_decode";
-import type { LatLng, LatLngExpression } from "leaflet";
+import { LatLng, type LatLngExpression } from "leaflet";
 
 import 'leaflet/dist/leaflet.css';
 import L from "leaflet";
@@ -45,7 +45,7 @@ export default class LeafletMap {
     elem_id_to_polyline: Map<number, PolylineCtx> = new Map();
     elem_id_to_style: Map<number, Style> = new Map();
     colors_used: Array<string> = new Array();
-    
+
     map_clicked_cbk: MapClickedCbk | undefined;
     map_centered_at_cbk: MapCenteredAtCbk | undefined;
     hover_cbk: PolyHoverCbk | undefined;
@@ -69,13 +69,11 @@ export default class LeafletMap {
                 this.map_clicked_cbk();
         });
 
-        this.map.on("dragend", (e) => {
-            if (this.map_centered_at_cbk)
-                this.map_centered_at_cbk(this.map.getCenter());
-        });
-
         this.map.on("moveend", (e) => {
             this.last_centered_on_item_id = 0;
+
+            if (this.map_centered_at_cbk)
+                this.map_centered_at_cbk(this.map.getCenter());
         });
 
         this.map.on("zoomend", (e) => {
@@ -105,6 +103,10 @@ export default class LeafletMap {
 
     public register_poly_clicked_handler(cbk: PolyClickedCbk) {
         this.poly_clicked_cbk = cbk;
+    }
+
+    public center_at_latlng(latlng: LatLng) {
+        this.map.setView(latlng, 9);
     }
 
     public center_view(elem_id: number) {
@@ -228,7 +230,7 @@ export default class LeafletMap {
         let prev_style = this.elem_id_to_style.get(id);
 
         if (prev_style) {
-            polyline.setStyle(prev_style);            
+            polyline.setStyle(prev_style);
             polyline.setStyle({ 'weight': prev_style.weight * 1 / 1.8 })
         }
     }
