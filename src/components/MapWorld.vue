@@ -28,7 +28,7 @@ var current_route_type = "unique_routes";
 var has_more_data = ref(true);
 
 onMounted(async () => {
-    endpoint = new DataEndpoint("localhost");
+    endpoint = new DataEndpoint();
     map = new LeafletMap("map");
 
     // Events coming from map

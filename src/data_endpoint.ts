@@ -7,20 +7,8 @@ const {
     BSON: { ObjectId },
 } = Realm;
 
-export default class DataEndpoint {
-    is_local: boolean;
-    url: string;
-
-    constructor(private endpoint: string) {
-        this.is_local = endpoint === "localhost";
-        this.url = "";
-
-        if (!this.is_local) {
-            this.authenticate_mongo();
-        } else {
-            this.url = "http://localhost:8000";
-        }
-    }
+class LocalServer {
+    url: string = "http://localhost:8000";
 
     get_data<T>(path: string): Promise<T> {
         return fetch(this.url + path, {
@@ -63,24 +51,105 @@ export default class DataEndpoint {
     async query_efforts(query: any): Promise<Effort[]> {
         return this.post_data('/query_efforts', query);
     }
+}
 
-    private async authenticate_mongo() {
+class RemoveServer {
+    private mongo :  globalThis.Realm.Services.MongoDB | undefined;
+
+    public async authenticate() {
         const app = new Realm.App({ id: "application-0-mlous" });
-        const credentials = Realm.Credentials.anonymous();
+        //const credentials = Realm.Credentials.anonymous();
         try {
-            const user = await app.logIn(credentials);
+            //const user = await app.logIn(credentials);
 
             if (app.currentUser) {
-                const mongo = app.currentUser.mongoClient("mongodb-atlas");
-                const collection = mongo.db("sample_airbnb").collection("listingsAndReviews");
-
-                const res = await collection.findOne({ name: "Apt Linda Vista Lagoa - Rio" });
-
-                console.log("res=", res);
+                this.mongo = app.currentUser.mongoClient("mongodb-atlas");              
             }
 
         } catch (err) {
             console.error("Failed to log in", err);
         }
     }
+
+    async get_activities_with_id(ids: number[]): Promise<Activity[]> {
+        const collection = this.mongo?.db("strava_db").collection("activities");
+        
+        if (collection)
+            return await collection.aggregate(QueryGen.acts_in_ids(ids));
+
+        return [];
+    }
+
+    async query_routes(query: any): Promise<Route[]> {
+        const collection = this.mongo?.db("gc_db").collection("routes");
+        
+        if (collection)
+            return await collection.aggregate(query);
+
+        return [];
+    }
+
+    async query_activities(query: any): Promise<Activity[]> {
+        const collection = this.mongo?.db("strava_db").collection("activities");
+        
+        if (collection)
+            return await collection.aggregate(query);
+
+        return [];
+    }
+
+    async query_efforts(query: any): Promise<Effort[]> {
+        const collection = this.mongo?.db("gc_db").collection("efforts");
+        
+        if (collection)
+            return await collection.aggregate(query);
+
+        return [];
+    }
+}
+
+export default class DataEndpoint {
+    is_local: boolean;
+    local_server: LocalServer = new LocalServer();
+    remove_server: RemoveServer = new RemoveServer();
+
+    constructor() {        
+        this.is_local = false;
+
+        if (!this.is_local) {
+            this.remove_server.authenticate();
+        } else {            
+        }
+    }
+
+
+    async get_activities_with_id(ids: number[]): Promise<Activity[]> {
+        if (this.is_local)
+            return this.local_server.get_activities_with_id(ids);
+        else
+            return this.remove_server.get_activities_with_id(ids);
+    }
+
+    async query_routes(query: any): Promise<Route[]> {
+        if (this.is_local)
+            return this.local_server.query_routes(query);       
+        else
+            return this.remove_server.query_routes(query);
+    }
+
+    async query_activities(query: any): Promise<Activity[]> {
+        if (this.is_local)
+            return this.local_server.query_activities(query);        
+        else
+            return this.remove_server.query_activities(query);
+    }
+
+    async query_efforts(query: any): Promise<Effort[]> {
+        if (this.is_local)
+            return this.local_server.query_efforts(query);        
+        else
+            return this.remove_server.query_efforts(query);
+    }
+
+   
 }
