@@ -58,9 +58,9 @@ class RemoveServer {
 
     public async authenticate() {
         const app = new Realm.App({ id: "application-0-mlous" });
-        //const credentials = Realm.Credentials.anonymous();
+        const credentials = Realm.Credentials.anonymous();
         try {
-            //const user = await app.logIn(credentials);
+            const user = await app.logIn(credentials);
 
             if (app.currentUser) {
                 this.mongo = app.currentUser.mongoClient("mongodb-atlas");              
@@ -72,6 +72,8 @@ class RemoveServer {
     }
 
     async get_activities_with_id(ids: number[]): Promise<Activity[]> {
+        await this.authenticate();
+
         const collection = this.mongo?.db("strava_db").collection("activities");
         
         if (collection)
@@ -81,6 +83,8 @@ class RemoveServer {
     }
 
     async query_routes(query: any): Promise<Route[]> {
+        await this.authenticate();
+
         const collection = this.mongo?.db("gc_db").collection("routes");
         
         if (collection)
@@ -90,6 +94,8 @@ class RemoveServer {
     }
 
     async query_activities(query: any): Promise<Activity[]> {
+        await this.authenticate();
+
         const collection = this.mongo?.db("strava_db").collection("activities");
         
         if (collection)
@@ -99,6 +105,8 @@ class RemoveServer {
     }
 
     async query_efforts(query: any): Promise<Effort[]> {
+        await this.authenticate();
+
         const collection = this.mongo?.db("gc_db").collection("efforts");
         
         if (collection)
@@ -114,14 +122,8 @@ export default class DataEndpoint {
     remove_server: RemoveServer = new RemoveServer();
 
     constructor() {        
-        this.is_local = false;
-
-        if (!this.is_local) {
-            this.remove_server.authenticate();
-        } else {            
-        }
+        this.is_local = true;
     }
-
 
     async get_activities_with_id(ids: number[]): Promise<Activity[]> {
         if (this.is_local)

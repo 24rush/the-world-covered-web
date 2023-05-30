@@ -54,7 +54,7 @@ function onNextPageRequested() {
                     v-on:hovered-activity="onHoveredActivity" v-on:unhovered-activity="onUnhoveredActivity"
                     :count_times="activity.activities.length" />
             </div>
-            <li v-if="has_more_data">
+            <li v-if="has_more_data && (activities?.length || routes?.length)">
                 <div :class="{ 'activity_container-mobile scroll_more_items_container-mobile': isMobile(), 'activity_container scroll_more_items_container': !isMobile() }"
                     class="list-group-item list-group-item-action d-flex justify-content-center align-items-center scroll_more_items_container"
                     style="margin:auto;"
@@ -68,21 +68,20 @@ function onNextPageRequested() {
 
 <style>
 .badge-item {
-    padding-right: 0.5em;
+    padding-right: 0.2em;
 }
 
 .routeList {
     right: 0.5em;
     top: 12em;
     max-width: 400px;
-    height: 76%;
-    overflow-y: hidden;
+    height: 70%;
+    overflow-y: scroll;
 }
 
 .routeList-mobile {
-    max-width: 100px !important;
-    padding-top: 1em;
-    padding-right: 1.4em;
+    max-width: 100px !important;    
+    padding-right: 1em;
 }
 
 .activity_container {}

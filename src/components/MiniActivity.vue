@@ -84,7 +84,7 @@ function country_formatter(country: String): String {
 
 .list-group-item-selected-mobile {
     border-width: 2px;
-    border-color: var(--bs-orange);
+    border-color: #fd7e148c;
     
     background-color: bisque !important;
 }

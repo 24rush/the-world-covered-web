@@ -1,5 +1,10 @@
 import Activity, { ActivityEffort } from "./activity";
 
+class Coord {
+    public x: number = 0;
+    public y: number = 0;
+}
+
 export default class Route {
     public _id: number = 0;
     public athlete_id: number = 0;
@@ -16,6 +21,8 @@ export default class Route {
     public location_city: String = "";
     public location_country: String = "";
     public start_date_local: String = "";
+    public dist_from_capital: number = 0;
+    public center_coord: Coord = new Coord();
 
     // View model
     public athlete_count: number = 0;

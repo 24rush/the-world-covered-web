@@ -93,7 +93,7 @@ function date_formatter(date_str: String): String {
                     </span>
                     <span v-if="activity.athlete_count > 1 && count_times <= 1" class="badge bg-primary rounded-pill">{{
                         activity.athlete_count
-                    }} people</span>
+                    }}p</span>
                     <span v-if="count_times > 1" class="badge bg-primary text-bg-danger rounded-pill">{{ count_times
                     }}x</span>
                 </div>
@@ -133,7 +133,7 @@ function date_formatter(date_str: String): String {
 
 .list-group-item-selected {
     border-width: 0px 0px 0px 5px;
-    border-color: var(--bs-orange);
+    border-color: #fd7e148c;
 
     transform: translateX(0px);
     transition: transform .2s;

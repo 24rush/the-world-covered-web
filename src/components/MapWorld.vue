@@ -66,6 +66,7 @@ function onActivityUnselected(activity_id: DocumentId) {
     selected_id.value = 0;
     hovered_id.value = activity_id;
     map.show_all();
+    hover_polyline_of_id(activity_id, false);
 }
 
 function onActivitySelected(activity_id: DocumentId) {
