@@ -73,7 +73,7 @@ function onNextPageRequested() {
 
 .routeList {
     right: 0.5em;
-    top: 12em;
+    top: 14em;
     max-width: 400px;
     height: 70%;
     overflow-y: scroll;
