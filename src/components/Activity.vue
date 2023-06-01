@@ -54,7 +54,7 @@ function date_formatter(date_str: String): String {
 <template>
     <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
         :class="{ 'list-group-item-hover': hovered_id === activity.master_activity_id && selected_id == 0, 'list-group-item-selected': selected_id === activity.master_activity_id }"
-        :key="activity.master_activity_id" v-on:mouseover="emit('hoveredActivity', activity.master_activity_id)"
+        :key="activity.master_activity_id" v-on:mouseenter="emit('hoveredActivity', activity.master_activity_id)"
         v-on:mouseleave="emit('unhoveredActivity', activity.master_activity_id)"
         v-on:mousedown="emit('selectedActivity', activity.master_activity_id)">
 

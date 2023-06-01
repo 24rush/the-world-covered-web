@@ -24,6 +24,9 @@ class ActivitySegment {
     public average_grade: number = 0;
     public maximum_grade: number = 0;
     public effort_series: EffortSeries[] = [];
+
+    // View model
+    public polyline: string = "";
 }
 
 export class ActivityEffort {

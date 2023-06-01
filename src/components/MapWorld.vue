@@ -9,6 +9,7 @@ import QueryGen from '@/query_gen';
 import Activity, { EffortSeriesData } from '@/data_types/activity';
 import type { DocumentId } from '@/data_types/activity';
 import { LatLng } from 'leaflet';
+import type { SegmentPolyline } from '@/data_types/segment';
 
 var routes_db = new Map<number, Route>();
 var routes = reactive<Route[]>([]);
@@ -19,6 +20,7 @@ var activities = reactive<Activity[]>([]);
 var selected_activity = ref<Activity>(new Activity());
 var hovered_id = ref(0);
 var selected_id = ref(0);
+var selected_seg_id = 0;
 
 var map: LeafletMap;
 var endpoint: DataEndpoint;
@@ -73,21 +75,28 @@ function bring_activity_into_view(activity_id: number) {
 }
 
 function onActivityUnselected(activity_id: DocumentId) {
-    selected_activity.value = new Activity();
-    selected_id.value = 0;
-    hovered_id.value = activity_id;
-    map.show_all();
+    if (activity_id == 0)
+        return;
+
+    // If Selected then hovered so unhover it
     hover_polyline_of_id(activity_id, false);
+    // Unselect current segment
+    onSegmentUnselected(selected_seg_id);
+
+    selected_activity.value = new Activity();
+    selected_seg_id = 0;
+    map.show_all();
 }
 
-function onActivitySelected(activity_id: DocumentId) {
+async function onActivitySelected(activity_id: DocumentId) {
+    onActivityUnselected(selected_id.value);
+
     if (selected_id.value == activity_id) {
-        onActivityUnselected(activity_id);
+        selected_id.value = 0;
         return;
     }
 
     let select_activity = (activity: Activity) => {
-        hovered_id.value = 0;
         selected_activity.value = activity;
         selected_id.value = activity_id;
 
@@ -95,18 +104,47 @@ function onActivitySelected(activity_id: DocumentId) {
         map.show_only(activity_id);
         map.center_view(activity_id);
 
+        hovered_id.value = activity._id;
         hover_polyline_of_id(activity_id, true);
+    };
+
+    let fill_segment_polylines = async (activity: Activity) => {
+        let segs = await retrieve_segments_for_act(activity);
+
+        // Store polylines in activity segments efforts
+        register_segments_in_activity(segs, activity);
+
+        if (selected_id.value == activity._id) {
+            // Handle retrieval of segments after activity select
+            highlight_first_segment(activity);
+        }
     };
 
     let cached_act = activities_db.get(activity_id);
 
     if (!cached_act) {
-        retrieve_activity(activity_id).then(activity => {
+        retrieve_activity(activity_id).then(async activity => {
             select_activity(activity);
+            cached_act = activity;
+
+            await fill_segment_polylines(cached_act);
         });
     } else {
         select_activity(cached_act);
     }
+
+    if (cached_act && cached_act.segment_efforts) {
+        if (!cached_act.segment_efforts[0].segment.polyline) {
+            await fill_segment_polylines(cached_act);
+        }
+
+        highlight_first_segment(cached_act);
+    }
+}
+
+function highlight_first_segment(activity: Activity) {
+    if (activity.segment_efforts)
+        onSegmentSelected(activity.segment_efforts[0].segment.id)
 }
 
 function onActivityHovered(activity_id: DocumentId) {
@@ -121,9 +159,35 @@ function onActivityUnhovered(activity_id: DocumentId) {
     if (selected_id.value != 0)
         return;
 
-    map.show_all();
     hovered_id.value = 0;
     hover_polyline_of_id(activity_id, false);
+}
+
+function onSegmentSelected(seg_id: DocumentId) {
+    if (selected_seg_id != 0) {
+        onSegmentUnselected(selected_seg_id);
+        selected_seg_id = 0;
+    }
+
+    let seg = selected_activity.value.segment_efforts.find(se => se.segment.id == seg_id);
+
+    if (seg && seg.segment.polyline) {
+        selected_seg_id = seg_id;
+        map.register_polyline(seg_id, seg.segment.polyline, {
+            "weight": 5.4,
+            "color": "#fc5200".toString()
+        });
+    }
+}
+
+function onSegmentUnselected(seg_id: DocumentId) {
+    map.unregister_polyline(selected_seg_id);
+    let seg = selected_activity.value.segment_efforts.find(se => se.segment.id == seg_id);
+
+    if (seg && seg.segment.polyline) {
+        selected_seg_id = 0;
+        map.unregister_polyline(seg_id);
+    }
 }
 
 function onNextPageRequested(page: number) {
@@ -182,9 +246,9 @@ function register_new_activity(activity: Activity): boolean {
     });
 
     activity.master_activity_id = activity._id;
-    activity.activities = [];    
+    activity.activities = [];
 
-    let coords = map.add_polyline(activity._id, activity.map.polyline);
+    let coords = map.register_polyline(activity._id, activity.map.polyline);
     activity.coords_center = coords.getCenter();
     activities_db.set(activity._id, activity);
     return true;
@@ -195,6 +259,22 @@ function retrieve_activity(id: number): Promise<Activity> {
         register_new_activity(activities[0]);
 
         return activities[0];
+    });
+}
+
+function retrieve_segments_for_act(activity: Activity): Promise<SegmentPolyline[]> {
+    let seg_ids = new Set<number>();
+    activity.segment_efforts.forEach(se => seg_ids.add(se.segment.id));
+
+    return endpoint.query_segments(QueryGen.docs_with_ids(Array.from(seg_ids)));
+}
+
+function register_segments_in_activity(segments: SegmentPolyline[], activity: Activity) {
+    let segs: Map<number, string> = new Map();
+    segments.forEach(seg => segs.set(seg._id, seg.polyline));
+
+    activity.segment_efforts.forEach(effort => {
+        effort.segment.polyline = segs.get(effort.segment.id) ?? "";
     });
 }
 
@@ -218,7 +298,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
             break;
         case "activity_id":
             if (activity_id) {
-                query = QueryGen.acts_in_ids([activity_id]);
+                query = QueryGen.docs_with_ids([activity_id]);
             } else {
                 console.log("WARNING: Activity ID missing for query")
             }
@@ -240,8 +320,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                 routes_db.set(route._id, route);
                 routes.push(route);
 
-                // Routes contain the polyline of the master activity
-                map.add_polyline(route.master_activity_id, route.polyline);
+                map.register_polyline(route.master_activity_id, route.polyline);
             });
 
             has_more_data.value = res_routes.length == query_gen.get_results_per_page();
@@ -269,6 +348,8 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                     onActivitySelected(activities[0]._id);
                 else
                     setTimeout(() => { bring_activity_into_view(activities[activities.length - 1]._id); });
+
+                map.center_view(activities[0]._id);
             }
 
         });
@@ -296,6 +377,7 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
         return;
     }
 
+    // Retrieve all efforts for this activity
     endpoint.query_efforts(query_gen.efforts_on_seg_id(seg_id)).then(efforts => {
         let moving_time_data: EffortSeriesData[] = [];
         let distance_from_start_data: EffortSeriesData[] = [];
@@ -353,7 +435,8 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
             <label class="btn btn-light buttons-bar-btn rounded-pill"
                 v-bind:onClick="() => onRouteTypeRequested('best_bang')" for="btnradio5">best bang</label>
         </div>
-        <Segments v-bind:activity="selected_activity" v-on:segmentEffortsRequested="onSegmentEffortsRequested">
+        <Segments v-bind:activity="selected_activity" v-on:segmentEffortsRequested="onSegmentEffortsRequested"
+            v-on:segment-selected="onSegmentSelected" v-on:segment-unselected="onSegmentUnselected">
         </Segments>
     </div>
 </template>

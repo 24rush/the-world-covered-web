@@ -89,6 +89,7 @@ function onNextPageRequested() {
 .activity_container-mobile {
     border-radius: 50px !important;
     margin-bottom: 0.25em;
+    margin-top: 0.7em;
 }
 
 .scroll_more_items {

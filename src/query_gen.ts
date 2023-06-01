@@ -1,5 +1,5 @@
 export default class QueryGen {
-    readonly RESULTS_LIMIT: number = 8;
+    readonly RESULTS_LIMIT: number = 10;
     private current_page: number = 0;
 
     constructor(private ath_id: number) { }
@@ -12,7 +12,7 @@ export default class QueryGen {
         return this.RESULTS_LIMIT;
     }
 
-    public static acts_in_ids(ids: number[]): any {
+    public static docs_with_ids(ids: number[]): any {
         return [{ "$match": { "_id": { "$in": ids } } }];
     }
 

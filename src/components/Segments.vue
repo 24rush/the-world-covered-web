@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import Activity, { EffortSeries, EffortSeriesData } from '@/data_types/activity';
 import gradient from '@/icons/gradient.vue';
-
-import Route from '@/data_types/route';
-import { reactive, type PropType, onMounted } from 'vue';
+import { reactive, type PropType, onMounted, ref, toRef } from 'vue';
 import { Carousel } from 'bootstrap'
 import Strava from '@/icons/strava.vue';
 
-const emit = defineEmits(['segmentEffortsRequested'])
+const emit = defineEmits(['segmentEffortsRequested', 'segmentSelected', 'segmentUnselected'])
 
 const props = defineProps({
     activity: {
-        type: Activity
+        type: Activity,
     },
 });
+
+var segmentCarousel: Element | null;
 
 const chartOptions = reactive({
     chart: {
@@ -78,16 +78,41 @@ const chartOptions = reactive({
 });
 
 onMounted(() => {
-    const segmentCarousel = document.querySelector('#segmentCarousel')
+});
+
+function onCarouselLoaded(el: any) {
+    if (segmentCarousel == el)
+        return;
+
+    segmentCarousel = document.querySelector('#segmentCarousel');
+
     if (!segmentCarousel)
         return;
 
     const carousel = new Carousel(segmentCarousel, {
         interval: 2000,
         touch: true
-    })
+    });
 
-});
+    let extract_seg_id = (id: string | undefined) => {
+        if (!id)
+            return 0;
+
+        return parseInt(id.split('segment')[1]);
+    }
+
+    let slide_event_handler = (event: Carousel.Event) => {
+        let from_elem = event.relatedTarget.parentElement?.children[event.from].id;
+        let to_elem = event.relatedTarget.parentElement?.children[event.to].id;
+        
+        emit('segmentUnselected', extract_seg_id(from_elem));
+        emit('segmentSelected', extract_seg_id(to_elem));
+    };
+
+    segmentCarousel.addEventListener('slid.bs.carousel', slide_event_handler );
+
+    emit('segmentSelected', extract_seg_id(document.querySelectorAll('.carousel-item.active')[0].id));
+}
 
 function distance_formatter(distance_m: number): String {
     if (distance_m > 1000)
@@ -117,10 +142,11 @@ function min_effort(series: EffortSeries): EffortSeriesData {
 
 </script>
 <template>
-    <div v-if="activity && activity?.master_activity_id != 0" id="segmentCarousel" class="carousel segment-carousel slide">
+    <div v-if="activity && activity?.master_activity_id != 0" id="segmentCarousel" class="carousel segment-carousel slide"
+        :ref="(el) => onCarouselLoaded(el)">
         <div class="carousel-inner" style="width: 85%; margin: auto;">
             <div v-for="(effort, index) in activity.segment_efforts" :key="effort.id" class="carousel-item"
-                :class="{ 'active': index == 0 }">
+                v-bind:id="'segment' + effort.segment.id" :class="{ 'active': index == 0 }">
                 <div class="d-flex accordion accordion-flush">
                     <div class="accordion-item" style="width: 100%;"
                         v-on:click="segmentEffortsRequested(activity, effort.segment.id, effort.id)">
@@ -151,7 +177,8 @@ function min_effort(series: EffortSeries): EffortSeriesData {
                         </span>
                         <div v-bind:id="'collapse' + effort.id.toString()" class="accordion-collapse hide collapse"
                             v-bind:aria-labelledby="'header' + effort.id.toString()">
-                            <div v-if="effort.segment.effort_series.length" style="padding-left: 1.8em; padding-top: 0.7em;">
+                            <div v-if="effort.segment.effort_series.length"
+                                style="padding-left: 1.8em; padding-top: 0.7em;">
                                 <span>Best </span>
                                 <span class="fw-bold">{{
                                     time_formatter(min_effort(effort.segment.effort_series[1]).y) }}</span>
