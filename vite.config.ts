@@ -11,8 +11,4 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
-  base: "/the-world-covered-web/",
-  build:{
-    outDir: "docs"
-  }
 })
