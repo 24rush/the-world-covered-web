@@ -73,7 +73,7 @@ const chartOptions = reactive({
         opposite: true,
     }],
     legend: {
-        show: false
+        show: true
     }
 });
 
@@ -258,12 +258,8 @@ function min_effort(series: EffortSeries): EffortSeriesData {
 }
 
 .segment-carousel {
-    margin-top: 1.5em;
     width: 100%;
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 3em;
+
     margin-left: auto;
     margin-right: auto;
 }

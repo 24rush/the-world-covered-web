@@ -17,6 +17,8 @@ var routes = reactive<Route[]>([]);
 var activities_db = new Map<number, Activity>();
 var activities = reactive<Activity[]>([]);
 
+var searchQuery = ref("");
+
 var selected_activity = ref<Activity>(new Activity());
 var hovered_id = ref(0);
 var selected_id = ref(0);
@@ -26,7 +28,7 @@ var map: LeafletMap;
 var endpoint: DataEndpoint;
 var query_gen: QueryGen = new QueryGen(4399230); // Athlete id which is required for some queries
 var current_page = 0;
-var current_route_type = "unique_routes";
+var current_route_type = "";
 var has_more_data = ref(true);
 
 onMounted(async () => {
@@ -357,6 +359,9 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
 }
 
 async function onRouteTypeRequested(type: String, activity_id?: DocumentId) {
+    if (current_route_type == type)
+        return;
+
     activities.splice(0)
     routes.splice(0);
     activities_db.clear();
@@ -401,6 +406,17 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     });
 }
 
+async function onSearchRequest() {
+    const rawResponse = await fetch('https://the-world-covered.vercel.app/api/genq', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 'prompt': searchQuery.value })
+    }).then(response => { console.log(response); })
+        .catch(err => console.log(err))
+}
+
 </script>
 
 <template>
@@ -412,9 +428,18 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
         v-on:unhoveredActivity="onActivityUnhovered" v-on:on-next-page-requested="onNextPageRequested">
     </ActivitiesList>
 
-    <div class="absolute buttons-bar" style="display: flex; flex-wrap: wrap;">
-        <div class="btn-group" style="z-index: 1; flex-basis: 100%;" role="group"
-            aria-label="Basic radio toggle button group">
+    <div class="absolute menu-bar" style="margin-top: 4em; display: flex; flex-wrap: wrap; height: 200px;">
+        <div class="input-group mb-2 rounded-pill">
+            <input type="text" v-model="searchQuery" class="form-control" placeholder="Search routes"
+                aria-label="Search routes" aria-describedby="button-addon2" style="
+                            border-top-left-radius: 50px;
+                            border-bottom-left-radius: 50px;">
+            <button v-on:click="onSearchRequest" class="btn btn-secondary" type="button" id="button-addon2" style="
+                            border-top-right-radius: 50px;
+                            border-bottom-right-radius: 50px;">GO</button>
+        </div>
+
+        <div class="queries-bar btn-group mb-3" role="group" aria-label="Basic radio toggle button group">
             <input type="radio" class="btn-check" name="btnradio" id="btnradio_unique" autocomplete="off">
             <label class="btn btn-light buttons-bar-btn rounded-pill"
                 v-bind:onClick="() => onRouteTypeRequested('unique_routes')" for="btnradio_unique">all routes</label>
@@ -458,11 +483,17 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     position: absolute;
 }
 
-.buttons-bar {
+.menu-bar {
     z-index: 1;
     top: 4em;
     left: 50%;
     transform: translate(-50%, -50%);
+
+    display: flex;
+    flex-wrap: wrap;
+
+    align-content: flex-start;
+    align-items: center;
 }
 
 .buttons-bar-btn {
@@ -471,6 +502,14 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     align-items: center;
     flex-wrap: wrap;
 }
+
+.queries-bar {
+    z-index: 1;
+    flex-basis: 90%;
+    margin: auto
+}
+
+.search-bar {}
 
 @media (min-width: 1024px) {}
 </style>
