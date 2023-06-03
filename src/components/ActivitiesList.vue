@@ -84,8 +84,6 @@ function onNextPageRequested() {
     padding-right: 1em;
 }
 
-.activity_container {}
-
 .activity_container-mobile {
     border-radius: 50px !important;
     margin-bottom: 0.25em;

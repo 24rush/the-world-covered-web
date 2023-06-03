@@ -24,15 +24,17 @@ class ActivitySegment {
     public average_grade: number = 0;
     public maximum_grade: number = 0;
     public effort_series: EffortSeries[] = [];
-
-    // View model
-    public polyline: string = "";
 }
 
 export class ActivityEffort {
     public id: number = 0;    
     public segment: ActivitySegment = new ActivitySegment();
-    public name: String = "";     
+    public name: String = "";
+    public start_index_poly: number = 0;
+    public end_index_poly: number = 0;
+
+    // View model - filled in by client
+    public polyline: string = "";
 }
 
 export default class Activity {

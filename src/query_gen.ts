@@ -8,7 +8,7 @@ export default class QueryGen {
         this.current_page = page;
     }
 
-    public get_results_per_page() : number {
+    public get_results_per_page(): number {
         return this.RESULTS_LIMIT;
     }
 
@@ -42,5 +42,14 @@ export default class QueryGen {
         }, {
             $sort: { "act_count": -1 }
         }, { "$skip": this.current_page * this.RESULTS_LIMIT }, { "$limit": this.RESULTS_LIMIT }];
+    }
+
+    public routes_gradients_over(gradient: number): any {
+        return [{
+            $match: {
+                'gradients.gradient': { $gt: gradient }
+            }
+        }, { $sort: { 'gradients.gradient': -1 } }, { "$skip": this.current_page * this.RESULTS_LIMIT }, { "$limit": this.RESULTS_LIMIT }
+        ];
     }
 }

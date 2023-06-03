@@ -9,7 +9,7 @@ import QueryGen from '@/query_gen';
 import Activity, { EffortSeriesData } from '@/data_types/activity';
 import type { DocumentId } from '@/data_types/activity';
 import { LatLng } from 'leaflet';
-import type { SegmentPolyline } from '@/data_types/segment';
+import PolylineDecoder from '@/data_types/polyline_decode';
 
 var routes_db = new Map<number, Route>();
 var routes = reactive<Route[]>([]);
@@ -91,13 +91,6 @@ function onActivityUnselected(activity_id: DocumentId) {
 }
 
 async function onActivitySelected(activity_id: DocumentId) {
-    onActivityUnselected(selected_id.value);
-
-    if (selected_id.value == activity_id) {
-        selected_id.value = 0;
-        return;
-    }
-
     let select_activity = (activity: Activity) => {
         selected_activity.value = activity;
         selected_id.value = activity_id;
@@ -111,10 +104,22 @@ async function onActivitySelected(activity_id: DocumentId) {
     };
 
     let fill_segment_polylines = async (activity: Activity) => {
-        let segs = await retrieve_segments_for_act(activity);
+        let seg_cache: Map<number, string> = new Map();
 
-        // Store polylines in activity segments efforts
-        register_segments_in_activity(segs, activity);
+        let coords = PolylineDecoder.decodePolyline(activity.map.polyline).getLatLngs();
+
+        activity.segment_efforts.forEach(effort => {
+            let existing_seg = seg_cache.get(effort.segment.id);
+
+            if (existing_seg) {
+                effort.polyline = existing_seg;
+            } else {
+                let spliced_poly = coords.slice(effort.start_index_poly, effort.end_index_poly + 1);
+                effort.polyline = PolylineDecoder.encodePolyline(spliced_poly)
+
+                seg_cache.set(effort.segment.id, effort.polyline);
+            }
+        });
 
         if (selected_id.value == activity._id) {
             // Handle retrieval of segments after activity select
@@ -122,6 +127,13 @@ async function onActivitySelected(activity_id: DocumentId) {
         }
     };
 
+    onActivityUnselected(selected_id.value);
+
+    if (selected_id.value == activity_id) {
+        selected_id.value = 0;
+        return;
+    }
+    
     let cached_act = activities_db.get(activity_id);
 
     if (!cached_act) {
@@ -133,14 +145,15 @@ async function onActivitySelected(activity_id: DocumentId) {
         });
     } else {
         select_activity(cached_act);
-    }
 
-    if (cached_act && cached_act.segment_efforts) {
-        if (!cached_act.segment_efforts[0].segment.polyline) {
-            await fill_segment_polylines(cached_act);
+        // Check that the efforts are filled in
+        if (cached_act.segment_efforts) {
+            if (!cached_act.segment_efforts[0].polyline) {
+                fill_segment_polylines(cached_act);
+            }
+
+            highlight_first_segment(cached_act);
         }
-
-        highlight_first_segment(cached_act);
     }
 }
 
@@ -173,9 +186,9 @@ function onSegmentSelected(seg_id: DocumentId) {
 
     let seg = selected_activity.value.segment_efforts.find(se => se.segment.id == seg_id);
 
-    if (seg && seg.segment.polyline) {
+    if (seg && seg.polyline) {
         selected_seg_id = seg_id;
-        map.register_polyline(seg_id, seg.segment.polyline, {
+        map.register_polyline(seg_id, seg.polyline, {
             "weight": 5.4,
             "color": "#fc5200".toString()
         });
@@ -186,7 +199,7 @@ function onSegmentUnselected(seg_id: DocumentId) {
     map.unregister_polyline(selected_seg_id);
     let seg = selected_activity.value.segment_efforts.find(se => se.segment.id == seg_id);
 
-    if (seg && seg.segment.polyline) {
+    if (seg && seg.polyline) {
         selected_seg_id = 0;
         map.unregister_polyline(seg_id);
     }
@@ -264,22 +277,6 @@ function retrieve_activity(id: number): Promise<Activity> {
     });
 }
 
-function retrieve_segments_for_act(activity: Activity): Promise<SegmentPolyline[]> {
-    let seg_ids = new Set<number>();
-    activity.segment_efforts.forEach(se => seg_ids.add(se.segment.id));
-
-    return endpoint.query_segments(QueryGen.docs_with_ids(Array.from(seg_ids)));
-}
-
-function register_segments_in_activity(segments: SegmentPolyline[], activity: Activity) {
-    let segs: Map<number, string> = new Map();
-    segments.forEach(seg => segs.set(seg._id, seg.polyline));
-
-    activity.segment_efforts.forEach(effort => {
-        effort.segment.polyline = segs.get(effort.segment.id) ?? "";
-    });
-}
-
 async function retrieve_query_type(type: string, activity_id?: DocumentId) {
     let query = "";
     switch (type) {
@@ -292,8 +289,8 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
         case "epic_rides":
             query = query_gen.act_epic_rides()
             break;
-        case "best_bang":
-            query = query_gen.act_best_bang()
+        case "best_ascents":
+            query = query_gen.routes_gradients_over(7)
             break;
         case "unique_routes":
             query = query_gen.unique_routes_routes()
@@ -313,48 +310,78 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
     if (query === "")
         return;
 
-    if (type === "unique_routes") {
-        await endpoint.query_routes(query).then(res_routes => {
-            res_routes.forEach(route => {
-                if (routes_db.get(route._id))
-                    return;
+    switch (type) {
+        case "unique_routes": {
+            await endpoint.query_routes(query).then(res_routes => {
+                res_routes.forEach(route => {
+                    if (routes_db.get(route._id))
+                        return;
 
-                routes_db.set(route._id, route);
-                routes.push(route);
+                    routes_db.set(route._id, route);
+                    routes.push(route);
 
-                map.register_polyline(route.master_activity_id, route.polyline);
-            });
+                    map.register_polyline(route.master_activity_id, route.polyline);
+                });
 
-            has_more_data.value = res_routes.length == query_gen.get_results_per_page();
+                has_more_data.value = res_routes.length == query_gen.get_results_per_page();
 
-            if (routes.length) {
-                if (current_page == 0)
-                    onActivitySelected(routes[0].master_activity_id);
-                else
-                    setTimeout(() => { bring_activity_into_view(routes[routes.length - 1].master_activity_id); });
-            }
-        });
-    }
-    else {
-        await endpoint.query_activities(query).then(res_activities => {
-            res_activities.forEach(activity => {
-                if (register_new_activity(activity)) {
-                    activities.push(activity);
+                if (routes.length) {
+                    if (current_page == 0)
+                        onActivitySelected(routes[0].master_activity_id);
+                    else
+                        setTimeout(() => { bring_activity_into_view(routes[routes.length - 1].master_activity_id); });
                 }
             });
+            break;
+        }
 
-            has_more_data.value = res_activities.length == query_gen.get_results_per_page();
+        case "best_ascents": {
+            await endpoint.query_routes(query).then(res_routes => {
+                res_routes.forEach(route => {
+                    if (routes_db.get(route._id))
+                        return;
 
-            if (activities.length) {
-                if (current_page == 0)
-                    onActivitySelected(activities[0]._id);
-                else
-                    setTimeout(() => { bring_activity_into_view(activities[activities.length - 1]._id); });
+                    route.type = "Gradient";
 
-                map.center_view(activities[0]._id);
-            }
+                    let gradient = route.gradients[0];
+                    let coords = PolylineDecoder.decodePolyline(route.polyline).getLatLngs();
+                    let gradient_coords = coords.slice(gradient.start_index, gradient.end_index + 1);
 
-        });
+                    route.polyline = PolylineDecoder.encodePolyline(gradient_coords);
+                    route.total_elevation_gain = gradient.elevation_gain;
+                    route.distance = gradient.length;
+
+                    routes_db.set(route._id, route);
+                    routes.push(route);
+
+                    map.register_polyline(route.master_activity_id, route.polyline);
+                });
+            });
+
+            break;
+        }
+
+        default: {
+            await endpoint.query_activities(query).then(res_activities => {
+                res_activities.forEach(activity => {
+                    if (register_new_activity(activity)) {
+                        activities.push(activity);
+                    }
+                });
+
+                has_more_data.value = res_activities.length == query_gen.get_results_per_page();
+
+                if (activities.length) {
+                    if (current_page == 0)
+                        onActivitySelected(activities[0]._id);
+                    else
+                        setTimeout(() => { bring_activity_into_view(activities[activities.length - 1]._id); });
+
+                    map.center_view(activities[0]._id);
+                }
+
+            });
+        }
     }
 }
 
@@ -372,6 +399,8 @@ async function onRouteTypeRequested(type: String, activity_id?: DocumentId) {
     current_page = 0;
     query_gen.set_page(current_page);
     has_more_data.value = true;
+    selected_seg_id = 0;
+    selected_activity.value = new Activity();
 
     retrieve_query_type(current_route_type, activity_id);
 }
@@ -432,11 +461,11 @@ async function onSearchRequest() {
         <div class="input-group mb-2 rounded-pill">
             <input type="text" v-model="searchQuery" class="form-control" placeholder="Search routes"
                 aria-label="Search routes" aria-describedby="button-addon2" style="
-                            border-top-left-radius: 50px;
-                            border-bottom-left-radius: 50px;">
+                                                        border-top-left-radius: 50px;
+                                                        border-bottom-left-radius: 50px;">
             <button v-on:click="onSearchRequest" class="btn btn-secondary" type="button" id="button-addon2" style="
-                            border-top-right-radius: 50px;
-                            border-bottom-right-radius: 50px;">GO</button>
+                                                        border-top-right-radius: 50px;
+                                                        border-bottom-right-radius: 50px;">GO</button>
         </div>
 
         <div class="queries-bar btn-group mb-3" role="group" aria-label="Basic radio toggle button group">
@@ -458,7 +487,7 @@ async function onSearchRequest() {
 
             <input type="radio" class="btn-check" name="btnradio" id="btnradio5" autocomplete="off">
             <label class="btn btn-light buttons-bar-btn rounded-pill"
-                v-bind:onClick="() => onRouteTypeRequested('best_bang')" for="btnradio5">best bang</label>
+                v-bind:onClick="() => onRouteTypeRequested('best_ascents')" for="btnradio5">best ascents</label>
         </div>
         <Segments v-bind:activity="selected_activity" v-on:segmentEffortsRequested="onSegmentEffortsRequested"
             v-on:segment-selected="onSegmentSelected" v-on:segment-unselected="onSegmentUnselected">
@@ -508,8 +537,6 @@ async function onSearchRequest() {
     flex-basis: 90%;
     margin: auto
 }
-
-.search-bar {}
 
 @media (min-width: 1024px) {}
 </style>

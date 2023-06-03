@@ -263,4 +263,9 @@ function min_effort(series: EffortSeries): EffortSeriesData {
     margin-left: auto;
     margin-right: auto;
 }
+
+.carousel-item {
+    transition: transform .4s ease-in-out !important;
+}
+
 </style>

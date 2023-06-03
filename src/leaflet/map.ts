@@ -129,7 +129,7 @@ export default class LeafletMap {
     public register_polyline(id: number, polyline: string, style?: any): L.Polyline {
         let exiting_poly = this.elem_id_to_polyline.get(id);
 
-        if (exiting_poly) {                        
+        if (exiting_poly) {
             return exiting_poly.polyline;
         }
 

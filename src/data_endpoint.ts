@@ -13,7 +13,6 @@ interface DataRetriever {
     query_routes(query: any): Promise<Route[]>;
     query_activities(query: any): Promise<Activity[]>;
     query_efforts(query: any): Promise<Effort[]>;
-    query_segments(query: any): Promise<SegmentPolyline[]>;
 }
 
 class LocalServer implements DataRetriever {
@@ -59,10 +58,6 @@ class LocalServer implements DataRetriever {
 
     async query_efforts(query: any): Promise<Effort[]> {
         return this.post_data('/query_efforts', query);
-    }
-
-    async query_segments(query: any): Promise<SegmentPolyline[]> {
-        return this.post_data('/query_segments', query);
     }
 }
 
@@ -111,10 +106,6 @@ class RemoveServer implements DataRetriever {
     async query_efforts(query: any): Promise<Effort[]> {
         return this.query("gc_db", "efforts", query);             
     }
-
-    async query_segments(query: any): Promise<SegmentPolyline[]> {
-        return this.query("gc_db", "segments", query);    
-    }
 }
 
 export default class DataEndpoint {
@@ -141,9 +132,5 @@ export default class DataEndpoint {
 
     async query_efforts(query: any): Promise<Effort[]> {
         return this.data_server.query_efforts(query);
-    }
-
-    async query_segments(query: any): Promise<SegmentPolyline[]> {
-        return this.data_server.query_segments(query);      
     }
 }
