@@ -21,6 +21,10 @@ class ActivitySegment {
     public distance: number = 0;
     public average_grade: number = 0;
     public maximum_grade: number = 0;
+    public city: String = "";
+    public country: String = "";
+
+    // View model
     public effort_series: EffortSeries[] = [];
 }
 

@@ -3,15 +3,22 @@ class Coord {
     public y: number = 0;
 }
 
-class Gradient {
+export class Gradient {
+    public id: number = 0;
     public start_index: number = 0;
     public end_index: number = 0;
+    public location_city: String = "";
+    public location_country: String = "";
     public gradient: number = 0;
     public length: number = 0;
     public avg_gradient: number = 0;
     public max_gradient: number = 0;
     public elevation_gain: number = 0;
-    public altitudes: number[] = [];
+    public altitude: number[] = [];
+    public distance: number[] = [];
+
+    // View model
+    public incline: number[] = [];
 }
 
 export default class Route {

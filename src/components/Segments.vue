@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import Activity, { EffortSeries, EffortSeriesData } from '@/data_types/activity';
+import { EffortSeries, EffortSeriesData } from '@/data_types/activity';
 import gradient from '@/icons/gradient.vue';
-import { reactive, onMounted} from 'vue';
+import { reactive, onMounted, ref } from 'vue';
 import { Carousel } from 'bootstrap'
 import Strava from '@/icons/strava.vue';
 import { ActivityMetaData } from '@/data_types/metadata';
@@ -13,6 +13,8 @@ const props = defineProps({
         type: ActivityMetaData,
     },
 });
+
+var accordion_open = ref(false);
 
 var segmentCarousel: Element | null;
 
@@ -78,9 +80,6 @@ const chartOptions = reactive({
     }
 });
 
-onMounted(() => {
-});
-
 function onCarouselLoaded(el: any) {
     if (segmentCarousel == el)
         return;
@@ -105,14 +104,20 @@ function onCarouselLoaded(el: any) {
     let slide_event_handler = (event: Carousel.Event) => {
         let from_elem = event.relatedTarget.parentElement?.children[event.from].id;
         let to_elem = event.relatedTarget.parentElement?.children[event.to].id;
-        
+
+        let to_seg_id = extract_seg_id(to_elem);
+
         emit('segmentUnselected', extract_seg_id(from_elem));
-        emit('segmentSelected', extract_seg_id(to_elem));
+        emit('segmentSelected', to_seg_id);
+
+        if (accordion_open.value) {
+            emit('segmentEffortsRequested', props.activity, to_seg_id);
+        }
     };
 
-    segmentCarousel.addEventListener('slid.bs.carousel', slide_event_handler );
+    segmentCarousel.addEventListener('slid.bs.carousel', slide_event_handler);
 
-    emit('segmentSelected', extract_seg_id(document.querySelectorAll('.carousel-item.active')[0].id));
+    emit('segmentSelected', extract_seg_id(segmentCarousel.querySelectorAll('.carousel-item.active')[0].id));
 }
 
 function distance_formatter(distance_m: number): String {
@@ -135,6 +140,8 @@ function segmentEffortsRequested(activity: ActivityMetaData | undefined, seg_id:
     if (button && "true" === button.getAttribute('aria-expanded')) {
         emit('segmentEffortsRequested', activity, seg_id);
     }
+
+    accordion_open.value = !accordion_open.value;
 }
 
 function min_effort(series: EffortSeries): EffortSeriesData {
@@ -143,8 +150,8 @@ function min_effort(series: EffortSeries): EffortSeriesData {
 
 </script>
 <template>
-    <div v-if="activity && activity.segment_efforts.length != 0" id="segmentCarousel" class="carousel segment-carousel slide"
-        :ref="(el) => onCarouselLoaded(el)">
+    <div v-if="activity && activity.segment_efforts.length != 0" id="segmentCarousel"
+        class="carousel segment-carousel slide" :ref="(el) => onCarouselLoaded(el)">
         <div class="carousel-inner" style="width: 85%; margin: auto;">
             <div v-for="(effort, index) in activity.segment_efforts" :key="effort.id" class="carousel-item"
                 v-bind:id="'segment' + effort.segment.id" :class="{ 'active': index == 0 }">
@@ -176,7 +183,8 @@ function min_effort(series: EffortSeries): EffortSeriesData {
                                 </div>
                             </button>
                         </span>
-                        <div v-bind:id="'collapse' + effort.id.toString()" class="accordion-collapse hide collapse"
+                        <div v-bind:id="'collapse' + effort.id.toString()" class="accordion-collapse collapse"
+                            :class="{ 'show': accordion_open, 'hide': !accordion_open }"
                             v-bind:aria-labelledby="'header' + effort.id.toString()">
                             <div v-if="effort.segment.effort_series.length"
                                 style="padding-left: 1.8em; padding-top: 0.7em;">
@@ -268,5 +276,4 @@ function min_effort(series: EffortSeries): EffortSeriesData {
 .carousel-item {
     transition: transform .4s ease-in-out !important;
 }
-
 </style>

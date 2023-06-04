@@ -1,5 +1,6 @@
 import { LatLng } from "leaflet";
 import type { ActivityEffort } from "./activity";
+import type { Gradient } from "./route";
 
 export class ActivityMetaData {
     public _id: number = 0;
@@ -22,7 +23,8 @@ export class ActivityMetaData {
     public count_times: number = 0;
     public athlete_count: number = 0;
 
-    public segment_efforts: ActivityEffort[] = [];    
+    public segment_efforts: ActivityEffort[] = [];   
+    public gradients: Gradient[] = [];
     public coords_center: LatLng = new LatLng(0,0);
 
     public isRoute() : boolean { return this.type.toLowerCase().includes('route');}

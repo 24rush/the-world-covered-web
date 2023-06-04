@@ -11,6 +11,7 @@ import type { DocumentId } from '@/data_types/activity';
 import { LatLng } from 'leaflet';
 import PolylineDecoder from '@/data_types/polyline_decode';
 import { ActivityMetaData } from '@/data_types/metadata';
+import Gradients from './Gradients.vue';
 
 var activities_db = new Map<number, Activity>();
 var metadata = reactive<ActivityMetaData[]>([]);
@@ -130,7 +131,7 @@ async function onActivitySelected(resource_id: DocumentId) {
         map.center_view(resource_id);
 
         hovered_id.value = resource_id;
-        hover_polyline_of_id(resource_id, true); console.log('hover' + resource_id)
+        hover_polyline_of_id(resource_id, true);
 
         // Gradients don't have an associated activity
         if (activity) {
@@ -215,6 +216,20 @@ function onSegmentUnselected(seg_id: DocumentId) {
         selected_seg_id = 0;
         map.unregister_polyline(seg_id);
     }
+}
+
+function onNextGradient(gradient_id: number) {
+    let curr_gradient_index = metadata.findIndex(meta => meta._id == gradient_id);
+
+    if (curr_gradient_index != -1 && curr_gradient_index + 1 < metadata.length)
+        onActivitySelected(metadata[curr_gradient_index + 1]._id);
+}
+
+function onPreviousGradient(gradient_id: number) {
+    let curr_gradient_index = metadata.findIndex(meta => meta._id == gradient_id);
+
+    if (curr_gradient_index != -1 && curr_gradient_index -1 >= 0)
+        onActivitySelected(metadata[curr_gradient_index - 1]._id);
 }
 
 function onNextPageRequested(page: number) {
@@ -303,7 +318,17 @@ function create_metadata_for_activity(activity: Activity): ActivityMetaData {
     metadata.polyline = activity.map.polyline;
     metadata.description = activity.description;
     metadata.location_city = activity.location_city ?? "";
+    if (metadata.location_city === "") {
+        let effort_with_city = activity.segment_efforts.find(se => se.segment.city && se.segment.city != "");
+        if (effort_with_city) metadata.location_city = effort_with_city.segment.city;
+    }
+
     metadata.location_country = activity.location_country;
+    if (metadata.location_country === "Romania") {
+        let effort_with_country = activity.segment_efforts.find(se => se.segment.country && se.segment.country != "");
+        if (effort_with_country) metadata.location_country = effort_with_country.segment.country;
+    }
+
     metadata.athlete_count = activity.athlete_count;
 
     metadata.distance = activity.distance;
@@ -326,13 +351,14 @@ function create_metadata_for_gradient(route: Route): ActivityMetaData {
     let gradient = route.gradients[0];
 
     metadata._id = (gradient_idx++);
+    gradient.id = metadata._id;
     metadata.type = "Gradient";
     metadata.master_activity_id = route.master_activity_id;
     metadata.activities = route.activities;
 
     metadata.description = route.description;
-    metadata.location_city = route.location_city;
-    metadata.location_country = route.location_country;
+    metadata.location_city = gradient.location_city != "" ? route.location_city : gradient.location_city;
+    metadata.location_country = gradient.location_country != "" ? route.location_country : gradient.location_country;
 
     metadata.distance = gradient.length;
     metadata.elevation_gain = gradient.elevation_gain;
@@ -340,6 +366,18 @@ function create_metadata_for_gradient(route: Route): ActivityMetaData {
 
     metadata.coords_center = new LatLng(route.center_coord.y, route.center_coord.x);
     metadata.count_times = route.activities.length;
+
+    gradient.incline = [];
+    gradient.altitude.forEach((altitude, index) => {
+        if (index == 0) {
+            gradient.incline[0] = 0;
+            return;
+        }
+
+        gradient.incline[index] = 100 * ((gradient.altitude[index] - gradient.altitude[index - 1]) * 1.) / (gradient.distance[index] - gradient.distance[index - 1])
+    });
+
+    metadata.gradients = [gradient];
 
     // Special mapping for polyline which is the actual gradient
     let coords = PolylineDecoder.decodePolyline(route.polyline).getLatLngs();
@@ -443,7 +481,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
         case "best_ascents": {
             await endpoint.query_routes(query).then(res_routes => {
                 res_routes.forEach(r => type == "unique_routes" ? on_new_route_retrieved(r) : on_new_gradient_retrieved(r));
-                has_more_data.value = res_routes.length == query_gen.get_results_per_page();                
+                has_more_data.value = res_routes.length == query_gen.get_results_per_page();
             });
             break;
         }
@@ -451,7 +489,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
         default: {
             await endpoint.query_activities(query).then(res_activities => {
                 res_activities.forEach(a => on_new_activity_retrieved(a));
-                has_more_data.value = res_activities.length == query_gen.get_results_per_page();                
+                has_more_data.value = res_activities.length == query_gen.get_results_per_page();
             });
         }
     }
@@ -523,7 +561,7 @@ async function onSearchRequest() {
 <template>
     <div id="map" style="z-index: 0;"> </div>
 
-    <ActivitiesList class="absolute" style="z-index: 2;" v-bind:activities="metadata" v-bind:has_more_data="has_more_data"
+    <ActivitiesList class="absolute" v-bind:activities="metadata" v-bind:has_more_data="has_more_data"
         v-bind:hovered_id="hovered_id" v-bind:selected_id="selected_id" v-on:selectedActivity="onActivitySelected"
         v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered"
         v-on:on-next-page-requested="onNextPageRequested">
@@ -534,12 +572,12 @@ async function onSearchRequest() {
             <input type="text" v-model="searchQuery" class="form-control" placeholder="Search routes"
                 aria-label="Search routes" aria-describedby="button-addon2"
                 style="
-                                                                                                    border-top-left-radius: 50px;
-                                                                                                    border-bottom-left-radius: 50px;">
+                                                                                                            border-top-left-radius: 50px;
+                                                                                                            border-bottom-left-radius: 50px;">
             <button v-on:click="onSearchRequest" class="btn btn-secondary" type="button" id="button-addon2"
                 style="
-                                                                                                    border-top-right-radius: 50px;
-                                                                                                    border-bottom-right-radius: 50px;">GO</button>
+                                                                                                            border-top-right-radius: 50px;
+                                                                                                            border-bottom-right-radius: 50px;">GO</button>
         </div>
 
         <div class="queries-bar btn-group mb-3" role="group" aria-label="Basic radio toggle button group">
@@ -566,6 +604,9 @@ async function onSearchRequest() {
         <Segments v-bind:activity="selected_activity" v-on:segmentEffortsRequested="onSegmentEffortsRequested"
             v-on:segment-selected="onSegmentSelected" v-on:segment-unselected="onSegmentUnselected">
         </Segments>
+        <Gradients v-bind:route="selected_activity" v-on:on-next-gradient="onNextGradient"
+            v-on:on-previous-gradient="onPreviousGradient">
+        </Gradients>
     </div>
 </template>
 
