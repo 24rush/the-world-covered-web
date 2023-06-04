@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import Activity, { EffortSeries, EffortSeriesData } from '@/data_types/activity';
 import gradient from '@/icons/gradient.vue';
-import { reactive, type PropType, onMounted, ref, toRef } from 'vue';
+import { reactive, onMounted} from 'vue';
 import { Carousel } from 'bootstrap'
 import Strava from '@/icons/strava.vue';
+import { ActivityMetaData } from '@/data_types/metadata';
 
 const emit = defineEmits(['segmentEffortsRequested', 'segmentSelected', 'segmentUnselected'])
 
 const props = defineProps({
     activity: {
-        type: Activity,
+        type: ActivityMetaData,
     },
 });
 
@@ -128,7 +129,7 @@ function time_formatter(time_sec: number): String {
         return new Date(time_sec * 1000).toISOString().substring(14, 19) + "s"
 }
 
-function segmentEffortsRequested(activity: Activity | undefined, seg_id: number, effort_id: number) {
+function segmentEffortsRequested(activity: ActivityMetaData | undefined, seg_id: number, effort_id: number) {
     let button = document.querySelector('[data-bs-target="#collapse' + effort_id + '"]') as HTMLElement;
 
     if (button && "true" === button.getAttribute('aria-expanded')) {
@@ -142,7 +143,7 @@ function min_effort(series: EffortSeries): EffortSeriesData {
 
 </script>
 <template>
-    <div v-if="activity && activity?.master_activity_id != 0" id="segmentCarousel" class="carousel segment-carousel slide"
+    <div v-if="activity && activity.segment_efforts.length != 0" id="segmentCarousel" class="carousel segment-carousel slide"
         :ref="(el) => onCarouselLoaded(el)">
         <div class="carousel-inner" style="width: 85%; margin: auto;">
             <div v-for="(effort, index) in activity.segment_efforts" :key="effort.id" class="carousel-item"

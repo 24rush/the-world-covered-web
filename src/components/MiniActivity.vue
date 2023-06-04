@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import Activity from '@/data_types/activity';
 import running from '@/icons/running.vue';
 import cycling from '@/icons/cycling.vue';
 import hiking from '@/icons/hiking.vue';
-import { type PropType } from 'vue';
-import Route from '@/data_types/route';
+import { ActivityMetaData } from '@/data_types/metadata';
 
 const emit = defineEmits(['selectedActivity'])
 
 const props = defineProps({
-    activity: {
-        type: [Activity, Route] as PropType<Activity | Route>,
+    activityMeta: {
+        type: ActivityMetaData,
         required: true
     },
     id: {
@@ -23,15 +21,6 @@ const props = defineProps({
     },
     selected_id: Number,
 });
-
-function pace_formatter(m_per_sec: number): String {
-    var pace = 16.667 / m_per_sec;
-    var leftover = pace % 1;
-    var minutes = pace - leftover;
-    var seconds = Math.round(leftover * 60);
-
-    return minutes + ":" + (seconds < 10 ? '0' + seconds : seconds)
-}
 
 function country_formatter(country: String): String {
     switch (country.toLowerCase()) {
@@ -51,28 +40,27 @@ function country_formatter(country: String): String {
 
 <template>
     <div class="activity_container list-group-item list-group-item-action"
-        :class="{ 'list-group-item-selected-mobile': selected_id === activity.master_activity_id }"
-        :key="activity.master_activity_id" v-on:mousedown="emit('selectedActivity', activity.master_activity_id)">
+        :class="{ 'list-group-item-selected-mobile': selected_id === activityMeta._id }"
+        :key="activityMeta._id" v-on:mousedown="emit('selectedActivity', activityMeta._id)">
 
         <div class="d-flex justify-content-between align-items-center" style="line-height: 1.2; flex-direction: column;" v-bind:id="'activity_' + id">
             <span v-if="count_times > 1"
                 class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary">{{ count_times
                 }}x</span>
 
-            <span v-if="activity.athlete_count > 1 && count_times <= 1" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary">{{
-                activity.athlete_count
+            <span v-if="activityMeta.athlete_count > 1 && count_times <= 1" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary">{{
+                activityMeta.athlete_count
             }}p</span>
 
-            <span class="fw-bold">{{ country_formatter(activity.location_country) }}</span>
+            <span class="fw-bold">{{ country_formatter(activityMeta.location_country) }}</span>
             <div>
-                <span class="stats-item">{{ Math.ceil(activity.distance / 1000) }}km</span>
+                <span class="stats-item">{{ Math.ceil(activityMeta.distance / 1000) }}km</span>
             </div>
             <span style="vertical-align: top;">
-                <running v-if="activity.type === 'Run'" />
-                <cycling v-if="activity.type === 'Ride'" />
-                <hiking v-if="activity.type === 'Hike'" />
+                <running v-if="activityMeta.isRun()" />
+                <cycling v-if="activityMeta.isRide()" />
+                <hiking v-if="activityMeta.isHike()" />
             </span>
-
         </div>
     </div>
 </template>

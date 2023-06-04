@@ -9,7 +9,6 @@ const {
 } = Realm;
 
 interface DataRetriever {
-    get_activities_with_id(ids: number[]): Promise<Activity[]>;
     query_routes(query: any): Promise<Route[]>;
     query_activities(query: any): Promise<Activity[]>;
     query_efforts(query: any): Promise<Effort[]>;
@@ -42,10 +41,6 @@ class LocalServer implements DataRetriever {
                 }
                 return response.json() as Promise<T>
             });
-    }
-
-    async get_activities_with_id(ids: number[]): Promise<Activity[]> {
-        return this.post_data('/query_activities', QueryGen.docs_with_ids(ids));
     }
 
     async query_routes(query: any): Promise<Route[]> {
@@ -91,10 +86,6 @@ class RemoveServer implements DataRetriever {
 
     }
 
-    async get_activities_with_id(ids: number[]): Promise<Activity[]> {
-        return this.query("strava_db", "activities", QueryGen.docs_with_ids(ids));        
-    }
-
     async query_routes(query: any): Promise<Route[]> {
         return this.query("gc_db", "routes", query);
     }
@@ -116,10 +107,6 @@ export default class DataEndpoint {
 
         if (!is_local)
             this.data_server = new RemoveServer();
-    }
-
-    async get_activities_with_id(ids: number[]): Promise<Activity[]> {        
-        return this.data_server.get_activities_with_id(ids);        
     }
 
     async query_routes(query: any): Promise<Route[]> {

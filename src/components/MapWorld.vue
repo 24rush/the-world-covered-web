@@ -10,16 +10,14 @@ import Activity, { EffortSeriesData } from '@/data_types/activity';
 import type { DocumentId } from '@/data_types/activity';
 import { LatLng } from 'leaflet';
 import PolylineDecoder from '@/data_types/polyline_decode';
-
-var routes_db = new Map<number, Route>();
-var routes = reactive<Route[]>([]);
+import { ActivityMetaData } from '@/data_types/metadata';
 
 var activities_db = new Map<number, Activity>();
-var activities = reactive<Activity[]>([]);
+var metadata = reactive<ActivityMetaData[]>([]);
 
 var searchQuery = ref("");
 
-var selected_activity = ref<Activity>(new Activity());
+var selected_activity = ref<ActivityMetaData>(new ActivityMetaData());
 var hovered_id = ref(0);
 var selected_id = ref(0);
 var selected_seg_id = 0;
@@ -30,6 +28,8 @@ var query_gen: QueryGen = new QueryGen(4399230); // Athlete id which is required
 var current_page = 0;
 var current_route_type = "";
 var has_more_data = ref(true);
+
+var gradient_idx = Math.floor(Math.random() * 174967);
 
 onMounted(async () => {
     endpoint = new DataEndpoint();
@@ -47,7 +47,7 @@ onMounted(async () => {
     });
 
     map.register_map_centered_at_cbk((new_center: LatLng) => {
-        if (selected_id.value != 0 && activities.length) {
+        if (selected_id.value != 0 && metadata.length) {
             return
         }
 
@@ -72,110 +72,122 @@ onMounted(async () => {
     }
 })
 
-function bring_activity_into_view(activity_id: number) {
-    document.getElementById("activity_" + activity_id)?.parentElement?.scrollIntoView(true);
+function bring_activity_into_view(resource_id: number) {
+    document.getElementById("activity_" + resource_id)?.parentElement?.scrollIntoView(true);
 }
 
-function onActivityUnselected(activity_id: DocumentId) {
-    if (activity_id == 0)
+function onActivityUnselected(resource_id: DocumentId) {
+    if (resource_id == 0)
         return;
 
     // If Selected then hovered so unhover it
-    hover_polyline_of_id(activity_id, false);
+    hover_polyline_of_id(resource_id, false);
     // Unselect current segment
     onSegmentUnselected(selected_seg_id);
 
-    selected_activity.value = new Activity();
+    selected_activity.value = new ActivityMetaData();
     selected_seg_id = 0;
     map.show_all();
 }
 
-async function onActivitySelected(activity_id: DocumentId) {
-    let select_activity = (activity: Activity) => {
-        selected_activity.value = activity;
-        selected_id.value = activity_id;
+function generate_segment_polylines(activity: Activity) {
+    if (activity.segment_efforts.length && activity.segment_efforts[0].polyline)
+        return;
+
+    let seg_cache: Map<number, string> = new Map();
+
+    let coords = PolylineDecoder.decodePolyline(activity.map.polyline).getLatLngs();
+
+    activity.segment_efforts.forEach(effort => {
+        let existing_seg = seg_cache.get(effort.segment.id);
+
+        if (existing_seg) {
+            effort.polyline = existing_seg;
+        } else {
+            let spliced_poly = coords.slice(effort.start_index_poly, effort.end_index_poly + 1);
+            effort.polyline = PolylineDecoder.encodePolyline(spliced_poly)
+
+            seg_cache.set(effort.segment.id, effort.polyline);
+        }
+    });
+}
+
+async function onActivitySelected(resource_id: DocumentId) {
+    let metadata_for_activity = metadata.find(a => a._id == resource_id);
+    if (!metadata_for_activity) {
+        console.log('WARNING: No metadata for ' + resource_id);
+        return;
+    }
+
+    let master_activity_id = metadata_for_activity.master_activity_id;
+
+    let select_activity = (resource_id: number, activity?: Activity) => {
+        selected_id.value = resource_id;
+        selected_activity.value = metadata_for_activity ?? new ActivityMetaData();
 
         map.hide_all();
-        map.show_only(activity_id);
-        map.center_view(activity_id);
+        map.show_only(resource_id);
+        map.center_view(resource_id);
 
-        hovered_id.value = activity._id;
-        hover_polyline_of_id(activity_id, true);
-    };
+        hovered_id.value = resource_id;
+        hover_polyline_of_id(resource_id, true); console.log('hover' + resource_id)
 
-    let fill_segment_polylines = async (activity: Activity) => {
-        let seg_cache: Map<number, string> = new Map();
-
-        let coords = PolylineDecoder.decodePolyline(activity.map.polyline).getLatLngs();
-
-        activity.segment_efforts.forEach(effort => {
-            let existing_seg = seg_cache.get(effort.segment.id);
-
-            if (existing_seg) {
-                effort.polyline = existing_seg;
-            } else {
-                let spliced_poly = coords.slice(effort.start_index_poly, effort.end_index_poly + 1);
-                effort.polyline = PolylineDecoder.encodePolyline(spliced_poly)
-
-                seg_cache.set(effort.segment.id, effort.polyline);
-            }
-        });
-
-        if (selected_id.value == activity._id) {
-            // Handle retrieval of segments after activity select
+        // Gradients don't have an associated activity
+        if (activity) {
+            generate_segment_polylines(activity);
             highlight_first_segment(activity);
         }
     };
 
     onActivityUnselected(selected_id.value);
 
-    if (selected_id.value == activity_id) {
+    if (selected_id.value == resource_id) {
         selected_id.value = 0;
         return;
     }
-    
-    let cached_act = activities_db.get(activity_id);
 
-    if (!cached_act) {
-        retrieve_activity(activity_id).then(async activity => {
-            select_activity(activity);
-            cached_act = activity;
+    switch (metadata_for_activity.type) {
+        case "Gradient":
+            select_activity(resource_id);
+            break;
 
-            await fill_segment_polylines(cached_act);
-        });
-    } else {
-        select_activity(cached_act);
+        default:
+            let cached_act = activities_db.get(master_activity_id);
 
-        // Check that the efforts are filled in
-        if (cached_act.segment_efforts) {
-            if (!cached_act.segment_efforts[0].polyline) {
-                fill_segment_polylines(cached_act);
+            if (!cached_act) {
+                await endpoint.query_activities(QueryGen.docs_with_ids([master_activity_id])).then(res_activities => {
+                    cached_act = res_activities[0];
+                    // Retrieve the activity associated with the Route
+                    on_new_activity_retrieved(cached_act);
+                });
             }
 
-            highlight_first_segment(cached_act);
-        }
+            select_activity(metadata_for_activity._id, cached_act);
+
+            break;
     }
 }
 
 function highlight_first_segment(activity: Activity) {
-    if (activity.segment_efforts)
+    if (activity.segment_efforts) {
         onSegmentSelected(activity.segment_efforts[0].segment.id)
+    }
 }
 
-function onActivityHovered(activity_id: DocumentId) {
+function onActivityHovered(resource_id: DocumentId) {
     if (selected_id.value != 0)
         return;
 
-    hovered_id.value = activity_id;
-    hover_polyline_of_id(activity_id, true);
+    hovered_id.value = resource_id;
+    hover_polyline_of_id(resource_id, true);
 }
 
-function onActivityUnhovered(activity_id: DocumentId) {
+function onActivityUnhovered(resource_id: DocumentId) {
     if (selected_id.value != 0)
         return;
 
     hovered_id.value = 0;
-    hover_polyline_of_id(activity_id, false);
+    hover_polyline_of_id(resource_id, false);
 }
 
 function onSegmentSelected(seg_id: DocumentId) {
@@ -234,11 +246,11 @@ function toRad(value: number): number {
     return value * Math.PI / 180;
 }
 
-function find_activity_closest_to(point: LatLng): Activity | undefined {
+function find_activity_closest_to(point: LatLng): ActivityMetaData | undefined {
     let curr_min = 0;
-    let curr_min_act: Activity | undefined = undefined;
+    let curr_min_act: ActivityMetaData | undefined = undefined;
 
-    activities_db.forEach((act) => {
+    metadata.forEach((act) => {
         let dist = calcCrow(point, act.coords_center);
 
         if (curr_min == 0 || dist < curr_min) {
@@ -250,31 +262,138 @@ function find_activity_closest_to(point: LatLng): Activity | undefined {
     return curr_min_act;
 }
 
-function register_new_activity(activity: Activity): boolean {
+function create_metadata_for_route(route: Route): ActivityMetaData {
+    let metadata = new ActivityMetaData();
 
+    metadata._id = route._id;
+    metadata.type = route.type;
+    metadata.master_activity_id = route.master_activity_id;
+    metadata.activities = route.activities;
+
+    metadata.polyline = route.polyline;
+    metadata.description = route.description;
+    metadata.location_city = route.location_city;
+    metadata.location_country = route.location_country;
+
+    metadata.distance = route.distance;
+    metadata.elevation_gain = route.total_elevation_gain;
+    metadata.average_speed = route.average_speed;
+
+    metadata.coords_center = new LatLng(route.center_coord.y, route.center_coord.x);
+    metadata.count_times = route.activities.length;
+
+    // No counterpart fields    
+    metadata.athlete_count = 0;
+    metadata.start_date_local = "";
+
+    // To be filled later when master activity is retrieved
+    metadata.segment_efforts = [];
+
+    return metadata;
+}
+
+function create_metadata_for_activity(activity: Activity): ActivityMetaData {
+    let metadata = new ActivityMetaData();
+
+    metadata._id = activity._id;
+    metadata.type = activity.type;
+    metadata.master_activity_id = activity._id;
+    metadata.activities = [];
+
+    metadata.polyline = activity.map.polyline;
+    metadata.description = activity.description;
+    metadata.location_city = activity.location_city ?? "";
+    metadata.location_country = activity.location_country;
+    metadata.athlete_count = activity.athlete_count;
+
+    metadata.distance = activity.distance;
+    metadata.elevation_gain = activity.total_elevation_gain;
+    metadata.average_speed = activity.average_speed;
+    metadata.start_date_local = activity.start_date_local;
+    metadata.segment_efforts = activity.segment_efforts;
+
+    // No counterpart fields
+    metadata.count_times = 1;
+
+    // To be filled later when master activity is retrieved    
+    metadata.coords_center = new LatLng(0, 0);
+
+    return metadata;
+}
+
+function create_metadata_for_gradient(route: Route): ActivityMetaData {
+    let metadata = new ActivityMetaData();
+    let gradient = route.gradients[0];
+
+    metadata._id = (gradient_idx++);
+    metadata.type = "Gradient";
+    metadata.master_activity_id = route.master_activity_id;
+    metadata.activities = route.activities;
+
+    metadata.description = route.description;
+    metadata.location_city = route.location_city;
+    metadata.location_country = route.location_country;
+
+    metadata.distance = gradient.length;
+    metadata.elevation_gain = gradient.elevation_gain;
+    metadata.average_speed = route.average_speed;
+
+    metadata.coords_center = new LatLng(route.center_coord.y, route.center_coord.x);
+    metadata.count_times = route.activities.length;
+
+    // Special mapping for polyline which is the actual gradient
+    let coords = PolylineDecoder.decodePolyline(route.polyline).getLatLngs();
+    let gradient_coords = coords.slice(gradient.start_index, gradient.end_index + 1);
+
+    metadata.polyline = PolylineDecoder.encodePolyline(gradient_coords);
+
+    // No counterpart fields    
+    metadata.athlete_count = 0;
+    metadata.start_date_local = "";
+    metadata.segment_efforts = [];
+
+    return metadata;
+}
+
+function on_new_gradient_retrieved(route: Route): boolean {
+    let metadata_for_gradient = create_metadata_for_gradient(route);
+    metadata.push(metadata_for_gradient);
+
+    map.register_polyline(metadata_for_gradient._id, metadata_for_gradient.polyline);
+    return true;
+}
+
+function on_new_route_retrieved(route: Route): boolean {
+    let metadata_for_route = create_metadata_for_route(route);
+    metadata.push(metadata_for_route);
+
+    map.register_polyline(metadata_for_route._id, metadata_for_route.polyline);
+
+    return true;
+}
+
+function on_new_activity_retrieved(activity: Activity): boolean {
     if (activities_db.get(activity._id)) {
         return false;
     }
 
-    activity.segment_efforts.forEach(se => {
+    let activity_meta_data = metadata.find(meta => meta.master_activity_id == activity._id);
+
+    if (!activity_meta_data) {
+        activity_meta_data = create_metadata_for_activity(activity);
+        metadata.push(create_metadata_for_activity(activity));
+    }
+
+    activity_meta_data.segment_efforts = activity.segment_efforts;
+    activity_meta_data.segment_efforts.forEach(se => {
         se.segment.effort_series = reactive([]);
     });
 
-    activity.master_activity_id = activity._id;
-    activity.activities = [];
-
     let coords = map.register_polyline(activity._id, activity.map.polyline);
-    activity.coords_center = coords.getCenter();
+    activity_meta_data.coords_center = coords.getCenter();
+
     activities_db.set(activity._id, activity);
     return true;
-}
-
-function retrieve_activity(id: number): Promise<Activity> {
-    return endpoint.get_activities_with_id([id]).then(activities => {
-        register_new_activity(activities[0]);
-
-        return activities[0];
-    });
 }
 
 async function retrieve_query_type(type: string, activity_id?: DocumentId) {
@@ -310,89 +429,42 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
     if (query === "")
         return;
 
-    switch (type) {
-        case "unique_routes": {
-            await endpoint.query_routes(query).then(res_routes => {
-                res_routes.forEach(route => {
-                    if (routes_db.get(route._id))
-                        return;
-
-                    routes_db.set(route._id, route);
-                    routes.push(route);
-
-                    map.register_polyline(route.master_activity_id, route.polyline);
-                });
-
-                has_more_data.value = res_routes.length == query_gen.get_results_per_page();
-
-                if (routes.length) {
-                    if (current_page == 0)
-                        onActivitySelected(routes[0].master_activity_id);
-                    else
-                        setTimeout(() => { bring_activity_into_view(routes[routes.length - 1].master_activity_id); });
-                }
-            });
-            break;
+    let highlight_new_item = () => {
+        if (metadata.length) {
+            if (current_page == 0)
+                onActivitySelected(metadata[0]._id);
+            else
+                setTimeout(() => { bring_activity_into_view(metadata[metadata.length - 1]._id); });
         }
+    }
 
+    switch (type) {
+        case "unique_routes":
         case "best_ascents": {
             await endpoint.query_routes(query).then(res_routes => {
-                res_routes.forEach(route => {
-                    if (routes_db.get(route._id))
-                        return;
-
-                    route.type = "Gradient";
-
-                    let gradient = route.gradients[0];
-                    let coords = PolylineDecoder.decodePolyline(route.polyline).getLatLngs();
-                    let gradient_coords = coords.slice(gradient.start_index, gradient.end_index + 1);
-
-                    route.polyline = PolylineDecoder.encodePolyline(gradient_coords);
-                    route.total_elevation_gain = gradient.elevation_gain;
-                    route.distance = gradient.length;
-
-                    routes_db.set(route._id, route);
-                    routes.push(route);
-
-                    map.register_polyline(route.master_activity_id, route.polyline);
-                });
+                res_routes.forEach(r => type == "unique_routes" ? on_new_route_retrieved(r) : on_new_gradient_retrieved(r));
+                has_more_data.value = res_routes.length == query_gen.get_results_per_page();                
             });
-
             break;
         }
 
         default: {
             await endpoint.query_activities(query).then(res_activities => {
-                res_activities.forEach(activity => {
-                    if (register_new_activity(activity)) {
-                        activities.push(activity);
-                    }
-                });
-
-                has_more_data.value = res_activities.length == query_gen.get_results_per_page();
-
-                if (activities.length) {
-                    if (current_page == 0)
-                        onActivitySelected(activities[0]._id);
-                    else
-                        setTimeout(() => { bring_activity_into_view(activities[activities.length - 1]._id); });
-
-                    map.center_view(activities[0]._id);
-                }
-
+                res_activities.forEach(a => on_new_activity_retrieved(a));
+                has_more_data.value = res_activities.length == query_gen.get_results_per_page();                
             });
         }
     }
+
+    highlight_new_item();
 }
 
 async function onRouteTypeRequested(type: String, activity_id?: DocumentId) {
     if (current_route_type == type)
         return;
 
-    activities.splice(0)
-    routes.splice(0);
+    metadata.splice(0)
     activities_db.clear();
-    routes_db.clear();
     map.clear_all();
 
     current_route_type = type.toString();
@@ -400,7 +472,7 @@ async function onRouteTypeRequested(type: String, activity_id?: DocumentId) {
     query_gen.set_page(current_page);
     has_more_data.value = true;
     selected_seg_id = 0;
-    selected_activity.value = new Activity();
+    selected_activity.value = new ActivityMetaData();
 
     retrieve_query_type(current_route_type, activity_id);
 }
@@ -451,21 +523,23 @@ async function onSearchRequest() {
 <template>
     <div id="map" style="z-index: 0;"> </div>
 
-    <ActivitiesList class="absolute" style="z-index: 2;" v-bind:activities="activities" v-bind:routes="routes"
-        v-bind:has_more_data="has_more_data" v-bind:hovered_id="hovered_id" v-bind:selected_id="selected_id"
-        v-on:selectedActivity="onActivitySelected" v-on:hoveredActivity="onActivityHovered"
-        v-on:unhoveredActivity="onActivityUnhovered" v-on:on-next-page-requested="onNextPageRequested">
+    <ActivitiesList class="absolute" style="z-index: 2;" v-bind:activities="metadata" v-bind:has_more_data="has_more_data"
+        v-bind:hovered_id="hovered_id" v-bind:selected_id="selected_id" v-on:selectedActivity="onActivitySelected"
+        v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered"
+        v-on:on-next-page-requested="onNextPageRequested">
     </ActivitiesList>
 
     <div class="absolute menu-bar" style="margin-top: 4em; display: flex; flex-wrap: wrap; height: 200px;">
         <div class="input-group mb-2 rounded-pill">
             <input type="text" v-model="searchQuery" class="form-control" placeholder="Search routes"
-                aria-label="Search routes" aria-describedby="button-addon2" style="
-                                                        border-top-left-radius: 50px;
-                                                        border-bottom-left-radius: 50px;">
-            <button v-on:click="onSearchRequest" class="btn btn-secondary" type="button" id="button-addon2" style="
-                                                        border-top-right-radius: 50px;
-                                                        border-bottom-right-radius: 50px;">GO</button>
+                aria-label="Search routes" aria-describedby="button-addon2"
+                style="
+                                                                                                    border-top-left-radius: 50px;
+                                                                                                    border-bottom-left-radius: 50px;">
+            <button v-on:click="onSearchRequest" class="btn btn-secondary" type="button" id="button-addon2"
+                style="
+                                                                                                    border-top-right-radius: 50px;
+                                                                                                    border-bottom-right-radius: 50px;">GO</button>
         </div>
 
         <div class="queries-bar btn-group mb-3" role="group" aria-label="Basic radio toggle button group">

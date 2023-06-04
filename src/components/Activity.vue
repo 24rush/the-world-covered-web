@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import Activity from '@/data_types/activity';
 import running from '@/icons/running.vue';
 import cycling from '@/icons/cycling.vue';
 import mountain from '@/icons/mountain.vue';
 import strava from '@/icons/strava.vue';
 import hiking from '@/icons/hiking.vue';
-import { type PropType } from 'vue';
-import Route from '@/data_types/route';
+import { ActivityMetaData } from '@/data_types/metadata';
 
 const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity'])
 
 const props = defineProps({
-    activity: {
-        type: [Activity, Route] as PropType<Activity | Route>,
+    activityMeta: {
+        type: ActivityMetaData,
         required: true
     },
     id: {
@@ -42,7 +40,6 @@ function date_formatter(date_str: String): String {
     let langCode = "ro-RO";
     let date = new Date(date_str.toString());
 
-    var day = date.toLocaleString(langCode, { day: '2-digit' });   // DD
     var month = date.toLocaleString(langCode, { month: 'short' }); // MMM
     var year = date.toLocaleString(langCode, { year: 'numeric' }); // YYYY
 
@@ -53,32 +50,32 @@ function date_formatter(date_str: String): String {
 
 <template>
     <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
-        :class="{ 'list-group-item-hover': hovered_id === activity.master_activity_id && selected_id == 0, 'list-group-item-selected': selected_id === activity.master_activity_id }"
-        :key="activity.master_activity_id" v-on:mouseenter="emit('hoveredActivity', activity.master_activity_id)"
-        v-on:mouseleave="emit('unhoveredActivity', activity.master_activity_id)"
-        v-on:mousedown="emit('selectedActivity', activity.master_activity_id)">
+        :class="{ 'list-group-item-hover': hovered_id === activityMeta._id && selected_id == 0, 'list-group-item-selected': selected_id === activityMeta._id }"
+        :key="activityMeta._id" v-on:mouseenter="emit('hoveredActivity', activityMeta._id)"
+        v-on:mouseleave="emit('unhoveredActivity', activityMeta._id)"
+        v-on:mousedown="emit('selectedActivity', activityMeta._id)">
 
         <div style="width: 100%;" v-bind:id="'activity_' + id">
             <div class=" d-flex">
                 <div>
-                    <span class="fw-bold" v-if="activity.location_city">{{ activity.location_city
+                    <span class="fw-bold" v-if="activityMeta.location_city">{{ activityMeta.location_city
                     }}, </span>
-                    <span class="fw-bold">{{ activity.location_country }}</span>
-                    <span class="fs-small">{{ date_formatter(activity.start_date_local) }}</span>
+                    <span class="fw-bold">{{ activityMeta.location_country }}</span>
+                    <span class="fs-small">{{ date_formatter(activityMeta.start_date_local) }}</span>
                     <div>
-                        <span v-if="activity.description && activity.activities.length <= 1" class="">{{
-                            activity.description }}</span>
+                        <span v-if="activityMeta.description && activityMeta.activities.length <= 1" class="">{{
+                            activityMeta.description }}</span>
                     </div>
                     <div>
-                        <span class="stats-item">{{ Math.ceil(activity.distance / 1000) }}km</span>
+                        <span class="stats-item">{{ Math.ceil(activityMeta.distance / 1000) }}km</span>
                         <span class="stats-item">
                             <mountain style="height: 17px;" />
                         </span>
-                        <span class="stats-item">{{ Math.ceil(activity.total_elevation_gain) }}m </span>
-                        <span class="stats-item" v-if="activity.type === 'Ride'">{{ parseFloat((activity.average_speed *
+                        <span class="stats-item">{{ Math.ceil(activityMeta.elevation_gain) }}m </span>
+                        <span class="stats-item" v-if="activityMeta.type === 'Ride'">{{ parseFloat((activityMeta.average_speed *
                             3.6).toString()).toFixed(1) }}km/h</span>
-                        <span class="stats-item" v-if="activity.type === 'Hike' || activity.type === 'Run'">{{
-                            pace_formatter(activity.average_speed) }}min/km</span>
+                        <span class="stats-item" v-if="activityMeta.type === 'Hike' || activityMeta.type === 'Run'">{{
+                            pace_formatter(activityMeta.average_speed) }}min/km</span>
                     </div>
                 </div>
                 <div class="ml-auto">
@@ -86,13 +83,13 @@ function date_formatter(date_str: String): String {
                             target="_blank">
                             <strava />
                         </a></span>
-                    <span class="badge-item" style="vertical-align: top;">
-                        <running v-if="activity.type === 'Run'" />
-                        <cycling v-if="activity.type === 'Ride'" />
-                        <hiking v-if="activity.type === 'Hike'" />
+                    <span style="vertical-align: top;">
+                        <running v-if="activityMeta.isRun()" />
+                        <cycling v-if="activityMeta.isRide()" />
+                        <hiking v-if="activityMeta.isHike()" />
                     </span>
-                    <span v-if="activity.athlete_count > 1 && count_times <= 1" class="badge bg-primary rounded-pill">{{
-                        activity.athlete_count
+                    <span v-if="activityMeta.athlete_count > 1 && count_times <= 1" class="badge bg-primary rounded-pill">{{
+                        activityMeta.athlete_count
                     }}p</span>
                     <span v-if="count_times > 1" class="badge bg-primary text-bg-danger rounded-pill">{{ count_times
                     }}x</span>
@@ -102,7 +99,7 @@ function date_formatter(date_str: String): String {
     </div>
 </template>
 
-<style scoped>
+<style>
 .badge-item {
     padding-right: 0.3em;
 }

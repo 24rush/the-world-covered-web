@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import type Activity from '@/data_types/activity';
 import ActivityVue from './Activity.vue';
 import MiniActivityVue from './MiniActivity.vue';
-import type Route from '@/data_types/route';
 import type { DocumentId } from '@/data_types/activity';
+import type { ActivityMetaData } from '@/data_types/metadata';
 
 const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity', 'onNextPageRequested'])
 
 const props = defineProps({
-    activities: Array<Activity>,
-    routes: Array<Route>,
+    activities: Array<ActivityMetaData>,
     hovered_id: Number,
     selected_id: Number,
     has_more_data: Boolean,
@@ -21,16 +19,16 @@ function isMobile() {
     return screen.width <= 760;
 }
 
-function onSelectedActivity(activity_id: DocumentId) {
-    emit('selectedActivity', activity_id)
+function onSelectedActivity(resource_id: DocumentId) {
+    emit('selectedActivity', resource_id)
 }
 
-function onHoveredActivity(activity_id: DocumentId) {
-    emit('hoveredActivity', activity_id);
+function onHoveredActivity(resource_id: DocumentId) {
+    emit('hoveredActivity', resource_id);
 }
 
-function onUnhoveredActivity(activity_id: DocumentId) {
-    emit('unhoveredActivity', activity_id)
+function onUnhoveredActivity(resource_id: DocumentId) {
+    emit('unhoveredActivity', resource_id)
 }
 
 function onNextPageRequested() {
@@ -44,17 +42,17 @@ function onNextPageRequested() {
     <div class="routeList" :class="{ 'routeList-mobile': isMobile() }">
         <ul class="list-group">
             <div :class="{ 'activity_container-mobile': isMobile(), 'activity_container': !isMobile() }"
-                style="cursor: pointer" v-for="activity in (activities?.length ? activities : routes)"
-                :key="activity.master_activity_id">
-                <MiniActivityVue v-if="isMobile()" :activity="activity" :id="activity.master_activity_id"
+                style="cursor: pointer" v-for="activity in activities"
+                :key="activity._id">
+                <MiniActivityVue v-if="isMobile()" :activity-meta="activity" :id="activity._id"
                     :selected_id="selected_id" v-on:selected-activity="onSelectedActivity"
                     :count_times="activity.activities.length" />
-                <ActivityVue v-else :activity="activity" :id="activity.master_activity_id" v-bind:hovered_id="hovered_id"
+                <ActivityVue v-else :activity-meta="activity" :id="activity._id" v-bind:hovered_id="hovered_id"
                     :selected_id="selected_id" v-on:selected-activity="onSelectedActivity"
                     v-on:hovered-activity="onHoveredActivity" v-on:unhovered-activity="onUnhoveredActivity"
                     :count_times="activity.activities.length" />
             </div>
-            <li v-if="has_more_data && (activities?.length || routes?.length)">
+            <li v-if="has_more_data && (activities?.length)">
                 <div :class="{ 'activity_container-mobile scroll_more_items_container-mobile': isMobile(), 'activity_container scroll_more_items_container': !isMobile() }"
                     class="list-group-item list-group-item-action d-flex justify-content-center align-items-center scroll_more_items_container"
                     style="margin:auto;"
@@ -67,10 +65,6 @@ function onNextPageRequested() {
 </template>
 
 <style>
-.badge-item {
-    padding-right: 0.2em;
-}
-
 .routeList {
     right: 0.5em;
     top: 14em;
