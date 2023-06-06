@@ -14,12 +14,24 @@ import PolylineDecoder from '@/data_types/polyline_decode';
 import { ActivityMetaData } from '@/data_types/metadata';
 import Gradients from './Gradients.vue';
 import { HistoryStatistics } from '@/data_types/statistics';
+import { Toast } from 'bootstrap'
+import GPTCommunicator from '@/openai';
 
 var activities_db = new Map<number, Activity>();
 var statistics = ref<HistoryStatistics>(new HistoryStatistics());
-var is_on_statistics_page = ref(false);
 var metadata = reactive<ActivityMetaData[]>([]);
 
+// Toggles the appearance of the Statistics component
+var is_on_statistics_page = ref(false);
+
+// true for as long as the user searched once and did not click on predefined queries
+// used to keep the button queries disabled
+var is_in_search_context = ref(false);
+
+// true as long as the countdown for search is running
+// used for disabling the search bar
+var is_search_query_ongoing = ref(false);
+var search_bar_text = ref("GO");
 var searchQuery = ref("");
 
 var selected_activity = ref<ActivityMetaData>(new ActivityMetaData());
@@ -28,7 +40,9 @@ var selected_id = ref(0);
 var selected_seg_id = 0;
 
 var map: LeafletMap;
+var errorToast: bootstrap.Toast;
 var endpoint: DataEndpoint;
+var gptcomm: GPTCommunicator = new GPTCommunicator();
 var query_gen: QueryGen = new QueryGen(4399230); // Athlete id which is required for some queries
 var current_page = 0;
 var current_route_type = "";
@@ -37,6 +51,12 @@ var has_more_data = ref(true);
 var gradient_idx = Math.floor(Math.random() * 174967);
 
 onMounted(async () => {
+    errorToast = new Toast("#errorToast", {
+        animation: true,
+        autohide: true,
+        delay: 4000
+    });
+
     endpoint = new DataEndpoint();
     map = new LeafletMap("map");
 
@@ -160,7 +180,7 @@ async function onActivitySelected(resource_id: DocumentId) {
             let cached_act = activities_db.get(master_activity_id);
 
             if (!cached_act) {
-                await endpoint.query_activities(QueryGen.docs_with_ids([master_activity_id])).then(res_activities => {
+                await endpoint.query_activities(query_gen.docs_with_ids([master_activity_id])).then(res_activities => {
                     cached_act = res_activities[0];
                     // Retrieve the activity associated with the Route
                     on_new_activity_retrieved(cached_act);
@@ -238,7 +258,7 @@ function onPreviousGradient(gradient_id: number) {
 
 function onNextPageRequested(page: number) {
     current_page = page;
-    query_gen.set_page(current_page);
+    query_gen.get_next_page_of_current_query();
     retrieve_query_type(current_route_type);
 }
 
@@ -298,7 +318,12 @@ function create_metadata_for_route(route: Route): ActivityMetaData {
     metadata.elevation_gain = route.total_elevation_gain;
     metadata.average_speed = route.average_speed;
 
-    metadata.coords_center = new LatLng(route.center_coord.y, route.center_coord.x);
+    if (route.center_coord)
+        metadata.coords_center = new LatLng(route.center_coord.y, route.center_coord.x);
+    else {
+        console.log("Missing center:" + metadata.master_activity_id);
+        console.log(route)
+    }
     metadata.count_times = route.activities.length;
 
     // No counterpart fields    
@@ -438,46 +463,13 @@ function on_new_activity_retrieved(activity: Activity): boolean {
     return true;
 }
 
-async function retrieve_query_type(type: string, activity_id?: DocumentId) {
-    let query = "";
+async function retrieve_query_type(query: any, activity_id?: DocumentId) {
+    searchQuery.value = "";
     is_on_statistics_page.value = false;
+    is_in_search_context.value = false;
+    is_search_query_ongoing.value = false;
 
-    switch (type) {
-        case "with_friends":
-            query = query_gen.acts_with_friends();
-            break;
-        case "abroad":
-            query = query_gen.act_abroad()
-            break;
-        case "epic_rides":
-            query = query_gen.act_epic_rides()
-            break;
-        case "best_ascents":
-            query = query_gen.routes_gradients_over(7)
-            break;
-        case "unique_routes":
-            query = query_gen.unique_routes_routes()
-            break;
-        case "statistics":
-            query = type;
-            is_on_statistics_page.value = true;
-            break;
-        case "activity_id":
-            if (activity_id) {
-                query = QueryGen.docs_with_ids([activity_id]);
-            } else {
-                console.log("WARNING: Activity ID missing for query")
-            }
-            break;
-        default:
-            console.log("WARNING: Unknown route type")
-            query = "";
-    }
-
-    if (query === "")
-        return;
-
-    let highlight_new_item = () => {
+    let highlight_new_item_received = () => {
         if (metadata.length) {
             if (current_page == 0)
                 onActivitySelected(metadata[0]._id);
@@ -486,9 +478,12 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
         }
     }
 
+    let type = query_gen.get_query_type();
+
     switch (type) {
         case "unique_routes":
         case "best_ascents": {
+            query = query_gen.set_query_for_type(type);
             await endpoint.query_routes(query).then(res_routes => {
                 res_routes.forEach(r => type == "unique_routes" ? on_new_route_retrieved(r) : on_new_gradient_retrieved(r));
                 has_more_data.value = res_routes.length == query_gen.get_results_per_page();
@@ -496,6 +491,8 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
             break;
         }
         case "statistics": {
+            is_on_statistics_page.value = true;
+
             if (!statistics.value.stats.length) {
                 await endpoint.query_statistics().then(res_stats => {
                     res_stats.stats = res_stats.stats.reverse();
@@ -506,6 +503,11 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
         }
 
         default: {
+            if (type == "activity_id" && activity_id) {
+                query = query_gen.docs_with_ids([activity_id]);
+            } else {
+                query = query_gen.set_query_for_type(type);
+            }
             await endpoint.query_activities(query).then(res_activities => {
                 res_activities.forEach(a => on_new_activity_retrieved(a));
                 has_more_data.value = res_activities.length == query_gen.get_results_per_page();
@@ -513,25 +515,35 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
         }
     }
 
-    highlight_new_item();
+    highlight_new_item_received();
 }
 
-async function onRouteTypeRequested(type: String, activity_id?: DocumentId) {
-    if (current_route_type == type)
-        return;
-
+function reset_routes() {
+    // Cleares all state data except for statistics which are readonly
     metadata.splice(0)
     activities_db.clear();
     map.clear_all();
 
-    current_route_type = type.toString();
+    current_route_type = "";
     current_page = 0;
-    query_gen.set_page(current_page);
+    query_gen.reset();
     has_more_data.value = true;
-    selected_seg_id = 0;
-    selected_activity.value = new ActivityMetaData();
 
-    retrieve_query_type(current_route_type, activity_id);
+    hovered_id.value = 0;
+    selected_seg_id = 0;
+    selected_id.value = 0;
+
+    selected_activity.value = new ActivityMetaData();
+}
+
+async function onRouteTypeRequested(type: string, activity_id?: DocumentId) {
+    if (current_route_type == type)
+        return;
+
+    reset_routes();
+    current_route_type = type.toString();
+
+    retrieve_query_type(query_gen.set_query_for_type(type), activity_id);
 }
 
 function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
@@ -564,17 +576,59 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     });
 }
 
-async function onSearchRequest() {
-    const rawResponse = await fetch('https://the-world-covered.vercel.app/api/genq', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 'prompt': searchQuery.value })
-    }).then(response => { console.log(response); })
-        .catch(err => console.log(err))
-}
 
+async function onSearchRequest() {
+    reset_routes();
+
+    is_search_query_ongoing.value = true;
+    is_in_search_context.value = true;
+    let start_count_down = 10;
+
+    let on_error = () => {
+        errorToast.show();
+    };
+
+    let reset_countdown = () => {
+        search_bar_text.value = "GO";
+        is_search_query_ongoing.value = false;
+        start_count_down = 10;
+    }
+
+    let count_down = () => {
+        if (is_search_query_ongoing.value) {
+            start_count_down--;
+            search_bar_text.value = start_count_down.toString();
+        }
+
+        if (start_count_down > 0 && is_search_query_ongoing.value)
+            setTimeout(count_down, 1000);
+        else {
+            reset_countdown();
+        }
+    };
+
+    setTimeout(count_down);
+
+    gptcomm.query(searchQuery.value, (obj_query: any) => {
+        console.log("GPT: ");
+        console.log(obj_query);
+
+        reset_countdown();
+
+        query_gen.set_query("gpt", obj_query, true);
+
+        endpoint.data_server.query_activities(obj_query).then(res_activities => {
+            if (res_activities.length) {
+                res_activities.forEach(a => on_new_activity_retrieved(a));
+                onActivitySelected(res_activities[0]._id);
+                has_more_data.value = res_activities.length == query_gen.get_results_per_page();
+            }
+            else
+                on_error();
+        }
+        );
+    }, (err) => { on_error() });
+}
 </script>
 
 <template>
@@ -589,35 +643,41 @@ async function onSearchRequest() {
     <div class="absolute menu-bar" style="margin-top: 4em; display: flex; flex-wrap: wrap; height: 200px;">
         <div class="input-group mb-2 rounded-pill">
             <input type="text" v-model="searchQuery" class="form-control" placeholder="Search routes"
-                aria-label="Search routes" aria-describedby="button-addon2"
+                aria-label="Search routes" aria-describedby="button-addon2" :disabled="is_search_query_ongoing"
                 style="border-top-left-radius: 50px;border-bottom-left-radius: 50px;">
             <button v-on:click="onSearchRequest" class="btn btn-secondary" type="button" id="button-addon2"
-                style="border-top-right-radius: 50px; border-bottom-right-radius: 50px;">GO</button>
+                style="border-top-right-radius: 50px; border-bottom-right-radius: 50px;">{{ search_bar_text }}</button>
         </div>
 
         <div class="queries-bar btn-group mb-3" role="group" aria-label="Basic radio toggle button group">
             <input type="radio" class="btn-check" name="btnradio" id="btnradio_unique" autocomplete="off">
             <label class="btn btn-light buttons-bar-btn rounded-pill"
+                v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                 v-bind:onClick="() => onRouteTypeRequested('unique_routes')" for="btnradio_unique">all routes</label>
 
             <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
             <label class="btn btn-light buttons-bar-btn rounded-pill"
+                v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                 v-bind:onClick="() => onRouteTypeRequested('epic_rides')" for="btnradio2">epic rides</label>
 
             <input type="radio" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
             <label class="btn btn-light buttons-bar-btn rounded-pill"
+                v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                 v-bind:onClick="() => onRouteTypeRequested('with_friends')" for="btnradio3">with friends</label>
 
             <input type="radio" class="btn-check" name="btnradio" id="btnradio4" autocomplete="off">
-            <label class="btn btn-light buttons-bar-btn rounded-pill" v-bind:onClick="() => onRouteTypeRequested('abroad')"
-                for="btnradio4">abroad</label>
+            <label class="btn btn-light buttons-bar-btn rounded-pill"
+                v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
+                v-bind:onClick="() => onRouteTypeRequested('abroad')" for="btnradio4">abroad</label>
 
             <input type="radio" class="btn-check" name="btnradio" id="btnradio5" autocomplete="off">
             <label class="btn btn-light buttons-bar-btn rounded-pill"
+                v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                 v-bind:onClick="() => onRouteTypeRequested('best_ascents')" for="btnradio5">best ascents</label>
 
             <input type="radio" class="btn-check" name="btnradio" id="btnradio6" autocomplete="off">
             <label class="btn btn-light buttons-bar-btn rounded-pill"
+                v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                 v-bind:onClick="() => onRouteTypeRequested('statistics')" for="btnradio6">statistics</label>
         </div>
         <Segments v-bind:activity="selected_activity" v-on:segmentEffortsRequested="onSegmentEffortsRequested"
@@ -630,6 +690,17 @@ async function onSearchRequest() {
 
         <Statistics v-if="is_on_statistics_page" v-bind:statistics="statistics">
         </Statistics>
+
+        <div id="errorToast" class="toast align-items-center" style="width: 100%!important; border-radius: 50px;"
+            role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    Ohh no! ChatGPT couldn't decipher this query. Try something else!
+                </div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+
     </div>
 </template>
 
@@ -674,6 +745,10 @@ async function onSearchRequest() {
     z-index: 1;
     flex-basis: 90%;
     margin: auto
+}
+
+.force_btn_unselect {
+    background-color: var(--bs-btn-bg) !important;
 }
 
 @media (min-width: 1024px) {}

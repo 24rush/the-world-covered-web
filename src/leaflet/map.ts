@@ -198,6 +198,8 @@ export default class LeafletMap {
 
         this.elem_id_to_polyline.clear();
         this.elem_id_to_style.clear();
+        this.last_centered_on_item_id = 0;
+        this.last_hovered_item_id = 0;
     }
 
     public hide_all() {
