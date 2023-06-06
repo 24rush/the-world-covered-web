@@ -2,8 +2,7 @@ import type Activity from "./data_types/activity";
 import type Effort from "./data_types/effort";
 import type Route from "./data_types/route";
 import * as Realm from "realm-web";
-import QueryGen from "./query_gen";
-import type { SegmentPolyline } from "./data_types/segment";
+import type { HistoryStatistics } from "./data_types/statistics";
 const {
     BSON: { ObjectId },
 } = Realm;
@@ -12,6 +11,7 @@ interface DataRetriever {
     query_routes(query: any): Promise<Route[]>;
     query_activities(query: any): Promise<Activity[]>;
     query_efforts(query: any): Promise<Effort[]>;
+    query_statistics() : Promise<HistoryStatistics>;
 }
 
 class LocalServer implements DataRetriever {
@@ -53,6 +53,10 @@ class LocalServer implements DataRetriever {
 
     async query_efforts(query: any): Promise<Effort[]> {
         return this.post_data('/query_efforts', query);
+    }
+
+    async query_statistics(): Promise<HistoryStatistics> {
+        return this.post_data('/query_statistics');
     }
 }
 
@@ -97,6 +101,10 @@ class RemoveServer implements DataRetriever {
     async query_efforts(query: any): Promise<Effort[]> {
         return this.query("gc_db", "efforts", query);             
     }
+
+    async query_statistics(): Promise<HistoryStatistics> {
+        return this.query("gc_db", "statistics", "");             
+    }
 }
 
 export default class DataEndpoint {
@@ -119,5 +127,9 @@ export default class DataEndpoint {
 
     async query_efforts(query: any): Promise<Effort[]> {
         return this.data_server.query_efforts(query);
+    }
+
+    async query_statistics(): Promise<HistoryStatistics> {
+        return this.data_server.query_statistics();
     }
 }

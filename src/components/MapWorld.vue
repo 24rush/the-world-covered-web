@@ -4,6 +4,7 @@ import DataEndpoint from '@/data_endpoint';
 import LeafletMap from '@/leaflet/map';
 import Route from '@/data_types/route';
 import ActivitiesList from './ActivitiesList.vue';
+import Statistics from './Statistics.vue';
 import Segments from './Segments.vue';
 import QueryGen from '@/query_gen';
 import Activity, { EffortSeriesData } from '@/data_types/activity';
@@ -12,8 +13,11 @@ import { LatLng } from 'leaflet';
 import PolylineDecoder from '@/data_types/polyline_decode';
 import { ActivityMetaData } from '@/data_types/metadata';
 import Gradients from './Gradients.vue';
+import { HistoryStatistics } from '@/data_types/statistics';
 
 var activities_db = new Map<number, Activity>();
+var statistics = ref<HistoryStatistics>(new HistoryStatistics());
+var is_on_statistics_page = ref(false);
 var metadata = reactive<ActivityMetaData[]>([]);
 
 var searchQuery = ref("");
@@ -228,7 +232,7 @@ function onNextGradient(gradient_id: number) {
 function onPreviousGradient(gradient_id: number) {
     let curr_gradient_index = metadata.findIndex(meta => meta._id == gradient_id);
 
-    if (curr_gradient_index != -1 && curr_gradient_index -1 >= 0)
+    if (curr_gradient_index != -1 && curr_gradient_index - 1 >= 0)
         onActivitySelected(metadata[curr_gradient_index - 1]._id);
 }
 
@@ -436,6 +440,8 @@ function on_new_activity_retrieved(activity: Activity): boolean {
 
 async function retrieve_query_type(type: string, activity_id?: DocumentId) {
     let query = "";
+    is_on_statistics_page.value = false;
+
     switch (type) {
         case "with_friends":
             query = query_gen.acts_with_friends();
@@ -451,6 +457,10 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
             break;
         case "unique_routes":
             query = query_gen.unique_routes_routes()
+            break;
+        case "statistics":
+            query = type;
+            is_on_statistics_page.value = true;
             break;
         case "activity_id":
             if (activity_id) {
@@ -483,6 +493,15 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                 res_routes.forEach(r => type == "unique_routes" ? on_new_route_retrieved(r) : on_new_gradient_retrieved(r));
                 has_more_data.value = res_routes.length == query_gen.get_results_per_page();
             });
+            break;
+        }
+        case "statistics": {
+            if (!statistics.value.stats.length) {
+                await endpoint.query_statistics().then(res_stats => {
+                    res_stats.stats = res_stats.stats.reverse();
+                    statistics.value = res_stats;
+                });
+            }
             break;
         }
 
@@ -571,13 +590,9 @@ async function onSearchRequest() {
         <div class="input-group mb-2 rounded-pill">
             <input type="text" v-model="searchQuery" class="form-control" placeholder="Search routes"
                 aria-label="Search routes" aria-describedby="button-addon2"
-                style="
-                                                                                                            border-top-left-radius: 50px;
-                                                                                                            border-bottom-left-radius: 50px;">
+                style="border-top-left-radius: 50px;border-bottom-left-radius: 50px;">
             <button v-on:click="onSearchRequest" class="btn btn-secondary" type="button" id="button-addon2"
-                style="
-                                                                                                            border-top-right-radius: 50px;
-                                                                                                            border-bottom-right-radius: 50px;">GO</button>
+                style="border-top-right-radius: 50px; border-bottom-right-radius: 50px;">GO</button>
         </div>
 
         <div class="queries-bar btn-group mb-3" role="group" aria-label="Basic radio toggle button group">
@@ -600,13 +615,21 @@ async function onSearchRequest() {
             <input type="radio" class="btn-check" name="btnradio" id="btnradio5" autocomplete="off">
             <label class="btn btn-light buttons-bar-btn rounded-pill"
                 v-bind:onClick="() => onRouteTypeRequested('best_ascents')" for="btnradio5">best ascents</label>
+
+            <input type="radio" class="btn-check" name="btnradio" id="btnradio6" autocomplete="off">
+            <label class="btn btn-light buttons-bar-btn rounded-pill"
+                v-bind:onClick="() => onRouteTypeRequested('statistics')" for="btnradio6">statistics</label>
         </div>
         <Segments v-bind:activity="selected_activity" v-on:segmentEffortsRequested="onSegmentEffortsRequested"
             v-on:segment-selected="onSegmentSelected" v-on:segment-unselected="onSegmentUnselected">
         </Segments>
+
         <Gradients v-bind:route="selected_activity" v-on:on-next-gradient="onNextGradient"
             v-on:on-previous-gradient="onPreviousGradient">
         </Gradients>
+
+        <Statistics v-if="is_on_statistics_page" v-bind:statistics="statistics">
+        </Statistics>
     </div>
 </template>
 
