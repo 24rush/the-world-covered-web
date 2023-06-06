@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     return
   }
 
-  const {prompt} = req.body;
+  const { prompt } = req.body;
   /*
   const { prompt } = (await req.json()) as {
     prompt?: string;
@@ -34,7 +34,8 @@ export default async function handler(req, res) {
     n: 1,
     stop: ['#', ';']
   };
-  /*
+
+  if (true) { // Bypass openai or not
     const response = await fetch("https://api.openai.com/v1/completions", {
       headers: {
         "Content-Type": "application/json",
@@ -43,8 +44,10 @@ export default async function handler(req, res) {
       method: "POST",
       body: JSON.stringify(payload),
     });
-  
+
     const json = await response.json();
-*/
-  res.status(200).end(JSON.stringify(payload));    
+    res.status(200).end(JSON.stringify(json));
+  } else {
+    res.status(200).end(JSON.stringify(payload));
+  }
 }
