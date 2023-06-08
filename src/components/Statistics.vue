@@ -139,6 +139,32 @@ function pace_formatter(m_per_sec: number): String {
                 <div class="tab-content" id="pills-tabContent">
                     <div class="tab-pane fade show active" id="pills-ride" role="tabpanel" aria-labelledby="pills-ride-tab"
                         tabindex="0">
+                        <div style="display: flex; flex-direction: row; flex-wrap: wrap; width: 80%;">
+                            <div class="stat_item">
+                                <span class="total_item_value">{{
+                                    Math.ceil(statistics.stats.reduce((prev, curr) => prev + curr.total_km_rides, 0))
+                                }}</span>
+                                <span class="total_item">KM</span>
+                            </div>
+                            <div class="stat_item">
+                                <span class="total_item_value">{{
+                                    Math.ceil(statistics.stats.reduce((prev, curr) => prev + (curr.mins_per_week_rides * 52
+                                        / 60), 0)) }}</span>
+                                <span class="total_item">HOURS</span>
+                            </div>
+                            <div class="stat_item">
+                                <span class="total_item_value">{{
+                                    Math.ceil(statistics.stats.reduce((prev, curr) => prev + (curr.total_elevation_gain),
+                                        0)) }}</span>
+                                <span class="total_item">elevation meters</span>
+                            </div>
+                            <div class="stat_item">
+                                <span class="total_item_value">{{
+                                    Math.ceil(statistics.stats.reduce((prev, curr) => prev + (curr.calories_rides), 0))
+                                }}</span>
+                                <span class="total_item">calories</span>
+                            </div>
+                        </div>
                         <div class="apex-chart">
                             <span class="chart_header"><span style="color: #008FFB">KM</span> + <span
                                     style="color: #00E396">Average speed</span> + <span style="color: rgb(243 96 121);">
@@ -152,6 +178,32 @@ function pace_formatter(m_per_sec: number): String {
                         </div>
                     </div>
                     <div class="tab-pane fade" id="pills-run" role="tabpanel" aria-labelledby="pills-run-tab" tabindex="0">
+                        <div style="display: flex; flex-direction: row; flex-wrap: wrap; width: 80%;">
+                            <div class="stat_item">
+                                <span class="total_item_value">{{
+                                    Math.ceil(statistics.stats.reduce((prev, curr) => prev + curr.total_km_runs, 0))
+                                }}</span>
+                                <span class="total_item">KM</span>
+                            </div>
+                            <div class="stat_item">
+                                <span class="total_item_value">{{
+                                    Math.ceil(statistics.stats.reduce((prev, curr) => prev + (curr.mins_per_week_runs * 52
+                                        / 60), 0)) }}</span>
+                                <span class="total_item">HOURS</span>
+                            </div>
+                            <div class="stat_item">
+                                <span class="total_item_value">{{
+                                    Math.ceil(statistics.stats.reduce((prev, curr) => prev + (curr.calories_runs), 0))
+                                }}</span>
+                                <span class="total_item">calories</span>
+                            </div>
+                            <div class="stat_item">
+                                <span class="total_item_value">{{
+                                    Math.ceil(statistics.stats.reduce((prev, curr) => prev + (curr.calories_runs), 0) /
+                                        statistics.stats.reduce((prev, curr) => prev + (curr.mins_per_week_runs * 52/60), 0)) }}</span>
+                                <span class="total_item">calories/hour</span>
+                            </div>
+                        </div>
                         <div class="apex-chart">
                             <span class="chart_header"><span style="color: #008FFB">KM</span> + <span
                                     style="color: #00E396">Average speed</span></span>
@@ -192,14 +244,14 @@ function pace_formatter(m_per_sec: number): String {
                     </div>
                     <div class="stat_item">
                         <span class="total_item_value">{{ hours_per_week_formatter(
-                            yearStats.hours_per_week_rides) }}</span>
+                            yearStats.mins_per_week_rides) }}</span>
                         <span class="total_item">Hours/week</span>
                     </div>
 
                     <div class="stat_item">
                         <span class="total_item_value">{{ hours_per_week_formatter(
-                            yearStats.hours_per_week_runs) }}</span>
-                        <span class="total_item">{{ hours_per_week_label_formatter(yearStats.hours_per_week_runs) }}</span>
+                            yearStats.mins_per_week_runs) }}</span>
+                        <span class="total_item">{{ hours_per_week_label_formatter(yearStats.mins_per_week_runs) }}</span>
                     </div>
                     <div class="stat_item">
                         <span class="total_item_value">{{
@@ -268,5 +320,4 @@ function pace_formatter(m_per_sec: number): String {
 .chart_header {
     font-size: 18px;
     text-transform: uppercase;
-}
-</style>
+}</style>

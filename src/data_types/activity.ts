@@ -56,4 +56,15 @@ export default class Activity {
     public total_elevation_gain: number = 0.0;
 
     public segment_efforts: ActivityEffort[] = [];
+
+    public static canParseFromObject(obj: any) : boolean {
+        let required_props = ['map', 'type', 'distance', 'location_city', 'location_country'];
+
+        Object.keys(obj).forEach(prop => {
+            required_props.splice(required_props.findIndex(rp => rp == prop), 1);
+            return prop in required_props;
+        });
+        
+        return required_props.length == 0;
+    }
 }

@@ -9,9 +9,12 @@ class YearStats {
     public total_km_rides = 0;
     public total_km_runs = 0;
 
-    public hours_per_week_rides = 0;
-    public hours_per_week_runs = 0;
+    public mins_per_week_rides = 0;
+    public mins_per_week_runs = 0;
 
+    public calories_runs = 0;
+    public calories_rides = 0;
+    
     public avg_speed_rides = 0;
     public avg_speed_runs = 0;
 

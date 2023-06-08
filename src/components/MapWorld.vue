@@ -6,6 +6,7 @@ import Route from '@/data_types/route';
 import ActivitiesList from './ActivitiesList.vue';
 import Statistics from './Statistics.vue';
 import Segments from './Segments.vue';
+import GPTChart from './GPTChart.vue'
 import QueryGen from '@/query_gen';
 import Activity, { EffortSeriesData } from '@/data_types/activity';
 import type { DocumentId } from '@/data_types/activity';
@@ -20,6 +21,7 @@ import GPTCommunicator from '@/openai';
 var activities_db = new Map<number, Activity>();
 var statistics = ref<HistoryStatistics>(new HistoryStatistics());
 var metadata = reactive<ActivityMetaData[]>([]);
+var gpt_chart_data = ref<any>(null);
 
 // Toggles the appearance of the Statistics component
 var is_on_statistics_page = ref(false);
@@ -47,6 +49,7 @@ var query_gen: QueryGen = new QueryGen(4399230); // Athlete id which is required
 var current_page = 0;
 var current_route_type = "";
 var has_more_data = ref(true);
+var toast_message = ref("");
 
 var gradient_idx = Math.floor(Math.random() * 174967);
 
@@ -194,7 +197,7 @@ async function onActivitySelected(resource_id: DocumentId) {
 }
 
 function highlight_first_segment(activity: Activity) {
-    if (activity.segment_efforts) {
+    if (activity.segment_efforts && activity.segment_efforts.length) {
         onSegmentSelected(activity.segment_efforts[0].segment.id)
     }
 }
@@ -456,8 +459,10 @@ function on_new_activity_retrieved(activity: Activity): boolean {
         se.segment.effort_series = reactive([]);
     });
 
-    let coords = map.register_polyline(activity._id, activity.map.polyline);
-    activity_meta_data.coords_center = coords.getCenter();
+    if (activity.map && activity.map.polyline) {
+        let coords = map.register_polyline(activity._id, activity.map.polyline);
+        activity_meta_data.coords_center = coords.getCenter();
+    }
 
     activities_db.set(activity._id, activity);
     return true;
@@ -576,17 +581,45 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     });
 }
 
+enum GPTReponseType {
+    Unknown,
+    Activity,
+    ActivityArray,
+    ObjectArray,
+    Text
+}
+
+function determine_result_type(result: any): GPTReponseType {
+    switch (typeof result) {
+        case "object":
+            let obj_to_parse = result.length && result.length > 0 ? result[0] : result;
+
+            if (Activity.canParseFromObject(obj_to_parse))
+                return result.length > 0 ? GPTReponseType.ActivityArray : GPTReponseType.Activity;
+            else
+                return GPTReponseType.ObjectArray;
+        case "string": {
+            return GPTReponseType.Text;
+        }
+        default:
+            return GPTReponseType.Unknown;
+    }
+}
+
+function showErrorMessage() {
+    toast_message.value = "Ohh no! ChatGPT couldn't decipher this query. Try rephrasing!";
+    errorToast.show();
+}
+
+function showNoResultsMessage() {
+    toast_message.value = "The query did not return any results. Try something else!";
+    errorToast.show();
+}
 
 async function onSearchRequest() {
-    reset_routes();
-
     is_search_query_ongoing.value = true;
     is_in_search_context.value = true;
     let start_count_down = 10;
-
-    let on_error = () => {
-        errorToast.show();
-    };
 
     let reset_countdown = () => {
         search_bar_text.value = "GO";
@@ -610,27 +643,52 @@ async function onSearchRequest() {
     setTimeout(count_down);
 
     gptcomm.query(searchQuery.value, (obj_query: any) => {
-        console.log("GPT: ");
-        console.log(obj_query);
-
         reset_countdown();
-
+        console.log(obj_query);
         query_gen.set_query("gpt", obj_query, true);
 
-        endpoint.data_server.query_activities(obj_query).then(res_activities => {
-            if (res_activities.length) {
-                res_activities.forEach(a => on_new_activity_retrieved(a));
-                onActivitySelected(res_activities[0]._id);
-                has_more_data.value = res_activities.length == query_gen.get_results_per_page();
+        endpoint.data_server.query_activities(query_gen.get_current_query()).then(result => {
+            console.log(result);            
+            let res_type = determine_result_type(result);
+
+            if ((res_type == GPTReponseType.ActivityArray || res_type == GPTReponseType.ObjectArray) && result.length == 0) {
+                showNoResultsMessage();
+                return;
             }
-            else
-                on_error();
+
+            let on_success = () => {
+                reset_routes();
+            };
+
+            switch (res_type) {
+                case GPTReponseType.ObjectArray: {
+                    on_success();
+
+                    console.log('Parsing response as object list')
+                    gpt_chart_data.value = result;
+
+                    break;
+                }
+                case GPTReponseType.ActivityArray: {
+                    on_success();
+
+                    console.log('Parsing response as activity list')
+
+                    result.forEach(a => on_new_activity_retrieved(a));
+                    onActivitySelected(result[0]._id);
+                    has_more_data.value = result.length == query_gen.get_results_per_page();
+
+                    break;
+                }
+
+                default:
+                    showErrorMessage();
+            }
         }
         );
-    }, (err) => { on_error() });
+    }, (err) => { showErrorMessage() });
 }
 </script>
-
 <template>
     <div id="map" style="z-index: 0;"> </div>
 
@@ -643,7 +701,8 @@ async function onSearchRequest() {
     <div class="absolute menu-bar" style="margin-top: 4em; display: flex; flex-wrap: wrap; height: 200px;">
         <div class="input-group mb-2 rounded-pill">
             <input type="text" v-model="searchQuery" class="form-control" placeholder="Search routes"
-                aria-label="Search routes" aria-describedby="button-addon2" :disabled="is_search_query_ongoing"
+                @keyup.enter.native="onSearchRequest" aria-label="Search routes"
+                aria-describedby="button-addon2" :disabled="is_search_query_ongoing"
                 style="border-top-left-radius: 50px;border-bottom-left-radius: 50px;">
             <button v-on:click="onSearchRequest" class="btn btn-secondary" type="button" id="button-addon2"
                 style="border-top-right-radius: 50px; border-bottom-right-radius: 50px;">{{ search_bar_text }}</button>
@@ -691,11 +750,14 @@ async function onSearchRequest() {
         <Statistics v-if="is_on_statistics_page" v-bind:statistics="statistics">
         </Statistics>
 
-        <div id="errorToast" class="toast align-items-center" style="width: 100%!important; border-radius: 50px;"
+        <GPTChart v-if="gpt_chart_data" :results_data="gpt_chart_data">
+        </GPTChart>
+
+        <div id="errorToast" class="toast align-items-center" style="width: 100%!important; border-radius: 50px;margin-top: 10px;"
             role="alert" aria-live="assertive" aria-atomic="true">
             <div class="d-flex">
                 <div class="toast-body">
-                    Ohh no! ChatGPT couldn't decipher this query. Try something else!
+                    {{ toast_message }}
                 </div>
                 <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>

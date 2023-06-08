@@ -9,6 +9,8 @@ export default class QueryGen {
     public set_query(type: string, query: any, applyLimits?: boolean) {
         this.current_type = type;
         this.current_query = applyLimits ? this.apply_limits(query) : query;
+
+        this.remove_projection();
     }
 
     public get_current_query(): any {
@@ -48,7 +50,7 @@ export default class QueryGen {
                 skip_applied = true;
             }
 
-            if ('$limit' in stage) {
+            if ('$limit' in stage && parseInt(stage['$limit']) > this.RESULTS_LIMIT) {
                 stage['$limit'] = this.RESULTS_LIMIT
                 limit_applied = true;
             }
@@ -63,6 +65,18 @@ export default class QueryGen {
         }
 
         return query;
+    }
+
+    private remove_projection() {
+        let new_query : any[] = [];
+        for (let stage of this.current_query) {
+            if ('$project' in stage)
+                continue;
+            
+            new_query.push(stage);
+        }
+
+        this.current_query = new_query;
     }
 
     public get_results_per_page(): number {
