@@ -1,5 +1,5 @@
 import PolylineDecoder from "@/data_types/polyline_decode";
-import { LatLng } from "leaflet";
+import { LatLng, LatLngBounds } from "leaflet";
 
 import 'leaflet/dist/leaflet.css';
 import L from "leaflet";
@@ -28,7 +28,7 @@ class Style {
 
 const HOVER_STYLE: Style = {
     color: '#0000FF',
-    opacity: 1,    
+    opacity: 1,
     weight: Style_Poly_Default_Weight * 1.8
 };
 
@@ -39,7 +39,7 @@ class PolylineCtx {
 export type PolyHoverCbk = (id: number, state: boolean) => void;
 export type PolyClickedCbk = (id: number) => void;
 export type MapClickedCbk = () => void;
-export type MapCenteredAtCbk = (center: LatLng) => void;
+export type MapCenteredAtCbk = (center: LatLng, bounds: LatLngBounds) => void;
 
 type PolylineHandlerFnc = (id: number, polyline: L.Polyline) => void;
 
@@ -80,7 +80,7 @@ export default class LeafletMap {
             this.last_centered_on_item_id = 0;
 
             if (this.map_centered_at_cbk)
-                this.map_centered_at_cbk(this.map.getCenter());
+                this.map_centered_at_cbk(this.map.getCenter(), this.map.getBounds());
         });
 
         this.map.on("zoomend", (e) => {
@@ -89,9 +89,12 @@ export default class LeafletMap {
                 let weight_for_zoom = Math.floor(this.map.getZoom() / 2.7);
 
                 let style = this.elem_id_to_style.get(poly[0]);
-                if (style) style.weight = weight_for_zoom;                
-                    poly[1].polyline.setStyle({ "weight": weight_for_zoom });
+                if (style) style.weight = weight_for_zoom;
+                poly[1].polyline.setStyle({ "weight": weight_for_zoom });
             }
+
+            if (this.map_centered_at_cbk)
+                this.map_centered_at_cbk(this.map.getCenter(), this.map.getBounds());
         });
     }
 
@@ -166,6 +169,7 @@ export default class LeafletMap {
 
         this.elem_id_to_polyline.set(id, new PolylineCtx(gps_points, true));
         this.addToMap(id, gps_points);
+        gps_points.bringToBack();
 
         return gps_points
     }
@@ -262,8 +266,8 @@ export default class LeafletMap {
         polyline.setStyle({ 'weight': Style_Poly_Default_Weight })
     }
 
-    private addToMap(id: number, polyline: L.Polyline) : boolean {
-        if (this.already_in.get(id)) {            
+    private addToMap(id: number, polyline: L.Polyline): boolean {
+        if (this.already_in.get(id)) {
             return false;
         }
 

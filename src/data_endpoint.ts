@@ -111,7 +111,7 @@ export default class DataEndpoint {
     data_server: DataRetriever = new LocalServer();
 
     constructor() {
-        let is_local = true;
+        let is_local = false;
 
         if (!is_local)
             this.data_server = new RemoveServer();

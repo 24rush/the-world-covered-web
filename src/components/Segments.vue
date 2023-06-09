@@ -127,9 +127,9 @@ function distance_formatter(distance_m: number): String {
     return distance_m.toFixed(0) + 'm';
 }
 
-function time_formatter(time_sec: number): String {
+function time_formatter(time_sec: number): String {    
     if (time_sec >= 3600)
-        return new Date(time_sec * 1000).toISOString().substring(11, 16) + "s"
+        return new Date(time_sec * 1000).toISOString().substring(11, 19) + "s"
     else
         return new Date(time_sec * 1000).toISOString().substring(14, 19) + "s"
 }

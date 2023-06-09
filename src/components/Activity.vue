@@ -56,8 +56,8 @@ function date_formatter(date_str: String): String {
         v-on:mousedown="emit('selectedActivity', activityMeta._id)">
 
         <div style="width: 100%;" v-bind:id="'activity_' + id">
-            <div class=" d-flex">
-                <div>
+            <div class="d-flex">
+                <div style="max-width: 80%;">
                     <span class="fw-bold" v-if="activityMeta.location_city">{{ activityMeta.location_city
                     }}, </span>
                     <span class="fw-bold">{{ activityMeta.location_country }}</span>
@@ -79,11 +79,11 @@ function date_formatter(date_str: String): String {
                     </div>
                 </div>
                 <div class="ml-auto">
-                    <span class="badge-item"><a class="strava_logo" v-bind:href="`https://www.strava.com/activities/${id}`"
+                    <span class="badge-item"><a class="strava_logo" v-on:mousedown.stop v-bind:href="`https://www.strava.com/activities/${activityMeta.master_activity_id}`"
                             target="_blank">
                             <strava />
                         </a></span>
-                    <span style="vertical-align: top;">
+                    <span class="badge-item" style="vertical-align: top;">
                         <running v-if="activityMeta.isRun()" />
                         <cycling v-if="activityMeta.isRide()" />
                         <hiking v-if="activityMeta.isHike()" />

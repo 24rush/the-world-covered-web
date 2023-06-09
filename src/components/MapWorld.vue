@@ -2,7 +2,7 @@
 import { ref, onMounted, reactive } from 'vue'
 import DataEndpoint from '@/data_endpoint';
 import LeafletMap from '@/leaflet/map';
-import Route from '@/data_types/route';
+import Route, { Gradient } from '@/data_types/route';
 import ActivitiesList from './ActivitiesList.vue';
 import Statistics from './Statistics.vue';
 import Segments from './Segments.vue';
@@ -10,7 +10,7 @@ import GPTChart from './GPTChart.vue'
 import QueryGen from '@/query_gen';
 import Activity, { EffortSeriesData } from '@/data_types/activity';
 import type { DocumentId } from '@/data_types/activity';
-import { LatLng } from 'leaflet';
+import { LatLng, LatLngBounds } from 'leaflet';
 import PolylineDecoder from '@/data_types/polyline_decode';
 import { ActivityMetaData } from '@/data_types/metadata';
 import Gradients from './Gradients.vue';
@@ -33,7 +33,7 @@ var is_in_search_context = ref(false);
 // true as long as the countdown for search is running
 // used for disabling the search bar
 var is_search_query_ongoing = ref(false);
-var search_bar_text = ref("GO");
+var search_bar_btn_text = ref("GO");
 var searchQuery = ref("");
 
 var selected_activity = ref<ActivityMetaData>(new ActivityMetaData());
@@ -45,7 +45,11 @@ var map: LeafletMap;
 var errorToast: bootstrap.Toast;
 var endpoint: DataEndpoint;
 var gptcomm: GPTCommunicator = new GPTCommunicator();
+
+// Query related data
 var query_gen: QueryGen = new QueryGen(4399230); // Athlete id which is required for some queries
+var radius_end: number = 3;
+var radius_start: number = 0;
 var current_page = 0;
 var current_route_type = "";
 var has_more_data = ref(true);
@@ -74,15 +78,32 @@ onMounted(async () => {
         onActivitySelected(id);
     });
 
-    map.register_map_centered_at_cbk((new_center: LatLng) => {
-        if (selected_id.value != 0 && metadata.length) {
-            return
+    map.register_map_centered_at_cbk((new_center: LatLng, bounds: LatLngBounds) => {
+        if (selected_id.value == 0 && metadata && metadata.length > 0) {
+            // If no activity is selected then move to closest one
+            let closest_act = find_activity_closest_to(new_center);
+
+            if (closest_act) {
+                bring_activity_into_view(closest_act._id);
+            }
         }
 
-        let closest_act = find_activity_closest_to(new_center);
+        if (bounds.isValid() && current_route_type == "unique_routes") {
+            let dist_from_capital = calcCrow(bounds.getNorthWest(), new LatLng(44.439663, 26.096306));
 
-        if (closest_act) {
-            bring_activity_into_view(closest_act._id);
+            if (dist_from_capital / 100 > radius_end) {
+                radius_start = radius_end;
+                radius_end = Math.ceil(dist_from_capital / 100);
+
+                let query = query_gen.set_query_for_type("unique_routes", radius_start, radius_end);
+
+                endpoint.query_routes(query).then(res_routes => {
+                    res_routes.forEach(r => on_new_route_retrieved(r));
+
+                    // Unique routes have no limit
+                    has_more_data.value = false;
+                });
+            }
         }
     });
 
@@ -153,8 +174,8 @@ async function onActivitySelected(resource_id: DocumentId) {
         selected_id.value = resource_id;
         selected_activity.value = metadata_for_activity ?? new ActivityMetaData();
 
-        map.hide_all();
-        map.show_only(resource_id);
+        //map.hide_all();
+        //map.show_only(resource_id);
         map.center_view(resource_id);
 
         hovered_id.value = resource_id;
@@ -174,25 +195,22 @@ async function onActivitySelected(resource_id: DocumentId) {
         return;
     }
 
-    switch (metadata_for_activity.type) {
-        case "Gradient":
-            select_activity(resource_id);
-            break;
+    if (metadata_for_activity.type.includes("Gradient")) {
+        select_activity(resource_id);
+    }
+    else {
 
-        default:
-            let cached_act = activities_db.get(master_activity_id);
+        let cached_act = activities_db.get(master_activity_id);
 
-            if (!cached_act) {
-                await endpoint.query_activities(query_gen.docs_with_ids([master_activity_id])).then(res_activities => {
-                    cached_act = res_activities[0];
-                    // Retrieve the activity associated with the Route
-                    on_new_activity_retrieved(cached_act);
-                });
-            }
+        if (!cached_act) {
+            await endpoint.query_activities(query_gen.docs_with_ids([master_activity_id])).then(res_activities => {
+                cached_act = res_activities[0];
+                // Retrieve the activity associated with the Route
+                on_new_activity_retrieved(cached_act);
+            });
+        }
 
-            select_activity(metadata_for_activity._id, cached_act);
-
-            break;
+        select_activity(metadata_for_activity._id, cached_act);
     }
 }
 
@@ -261,7 +279,7 @@ function onPreviousGradient(gradient_id: number) {
 
 function onNextPageRequested(page: number) {
     current_page = page;
-    query_gen.get_next_page_of_current_query();
+    query_gen.set_next_page_of_current_query();
     retrieve_query_type(current_route_type);
 }
 
@@ -378,59 +396,59 @@ function create_metadata_for_activity(activity: Activity): ActivityMetaData {
     return metadata;
 }
 
-function create_metadata_for_gradient(route: Route): ActivityMetaData {
-    let metadata = new ActivityMetaData();
-    let gradient = route.gradients[0];
+function create_metadata_for_gradient(route: Route, filter: (g: Gradient) => boolean): ActivityMetaData[] {
+    let metadata_gradients: ActivityMetaData[] = [];
 
-    metadata._id = (gradient_idx++);
-    gradient.id = metadata._id;
-    metadata.type = "Gradient";
-    metadata.master_activity_id = route.master_activity_id;
-    metadata.activities = route.activities;
+    for (let gradient of route.gradients) {
+        if (!filter(gradient))
+            continue;
 
-    metadata.description = route.description;
-    metadata.location_city = gradient.location_city != "" ? route.location_city : gradient.location_city;
-    metadata.location_country = gradient.location_country != "" ? route.location_country : gradient.location_country;
+        let metadata = new ActivityMetaData();
 
-    metadata.distance = gradient.length;
-    metadata.elevation_gain = gradient.elevation_gain;
-    metadata.average_speed = route.average_speed;
+        metadata._id = (gradient_idx++);
+        gradient.id = metadata._id;
+        metadata.type = "Gradient" + route.type;
+        metadata.master_activity_id = route.master_activity_id;
+        metadata.activities = route.activities;
 
-    metadata.coords_center = new LatLng(route.center_coord.y, route.center_coord.x);
-    metadata.count_times = route.activities.length;
+        metadata.description = route.description;
+        metadata.location_city = gradient.location_city != "" ? route.location_city : gradient.location_city;
+        metadata.location_country = gradient.location_country != "" ? route.location_country : gradient.location_country;
 
-    gradient.incline = [];
-    gradient.altitude.forEach((altitude, index) => {
-        if (index == 0) {
-            gradient.incline[0] = 0;
-            return;
-        }
+        metadata.distance = gradient.length;
+        metadata.elevation_gain = gradient.elevation_gain;
+        metadata.average_speed = route.average_speed;
 
-        gradient.incline[index] = 100 * ((gradient.altitude[index] - gradient.altitude[index - 1]) * 1.) / (gradient.distance[index] - gradient.distance[index - 1])
-    });
+        metadata.coords_center = new LatLng(route.center_coord.y, route.center_coord.x);
+        metadata.count_times = route.activities.length;
 
-    metadata.gradients = [gradient];
+        gradient.incline = [];
+        gradient.altitude.forEach((altitude, index) => {
+            if (index == 0) {
+                gradient.incline[0] = 0;
+                return;
+            }
 
-    // Special mapping for polyline which is the actual gradient
-    let coords = PolylineDecoder.decodePolyline(route.polyline).getLatLngs();
-    let gradient_coords = coords.slice(gradient.start_index, gradient.end_index + 1);
+            gradient.incline[index] = 100 * ((gradient.altitude[index] - gradient.altitude[index - 1]) * 1.) / (gradient.distance[index] - gradient.distance[index - 1])
+        });
 
-    metadata.polyline = PolylineDecoder.encodePolyline(gradient_coords);
+        metadata.gradients = [gradient];
 
-    // No counterpart fields    
-    metadata.athlete_count = 0;
-    metadata.start_date_local = "";
-    metadata.segment_efforts = [];
+        // Special mapping for polyline which is the actual gradient
+        let coords = PolylineDecoder.decodePolyline(route.polyline).getLatLngs();
+        let gradient_coords = coords.slice(gradient.start_index, gradient.end_index + 1);
 
-    return metadata;
-}
+        metadata.polyline = PolylineDecoder.encodePolyline(gradient_coords);
 
-function on_new_gradient_retrieved(route: Route): boolean {
-    let metadata_for_gradient = create_metadata_for_gradient(route);
-    metadata.push(metadata_for_gradient);
+        // No counterpart fields    
+        metadata.athlete_count = 0;
+        metadata.start_date_local = "";
+        metadata.segment_efforts = [];
 
-    map.register_polyline(metadata_for_gradient._id, metadata_for_gradient.polyline);
-    return true;
+        metadata_gradients.push(metadata);
+    }
+
+    return metadata_gradients;
 }
 
 function on_new_route_retrieved(route: Route): boolean {
@@ -468,7 +486,7 @@ function on_new_activity_retrieved(activity: Activity): boolean {
     return true;
 }
 
-async function retrieve_query_type(query: any, activity_id?: DocumentId) {
+async function retrieve_query_type(type: string, activity_id?: DocumentId) {
     searchQuery.value = "";
     is_on_statistics_page.value = false;
     is_in_search_context.value = false;
@@ -483,14 +501,30 @@ async function retrieve_query_type(query: any, activity_id?: DocumentId) {
         }
     }
 
-    let type = query_gen.get_query_type();
+    let query: any = query_gen.get_current_query();
 
     switch (type) {
-        case "unique_routes":
-        case "best_ascents": {
-            query = query_gen.set_query_for_type(type);
+        case "unique_routes": {
             await endpoint.query_routes(query).then(res_routes => {
-                res_routes.forEach(r => type == "unique_routes" ? on_new_route_retrieved(r) : on_new_gradient_retrieved(r));
+                res_routes.forEach(r => on_new_route_retrieved(r));
+
+                // Unique routes have no limit
+                has_more_data.value = false;
+            });
+            break;
+        }
+        case "best_ascents": {
+            await endpoint.query_routes(query).then(res_routes => {
+                res_routes.forEach(r => {
+                    let metadatas_for_gradient = create_metadata_for_gradient(r, (g) => g.avg_gradient >= 7);
+                    for (let metadata_gradient of metadatas_for_gradient) {
+                        metadata.push(metadata_gradient);
+                        map.register_polyline(metadata_gradient._id, metadata_gradient.polyline);
+                    }
+
+                    metadata = metadata.sort((a, b) => b.gradients[0].elevation_gain - a.gradients[0].elevation_gain)
+                });
+
                 has_more_data.value = res_routes.length == query_gen.get_results_per_page();
             });
             break;
@@ -510,8 +544,6 @@ async function retrieve_query_type(query: any, activity_id?: DocumentId) {
         default: {
             if (type == "activity_id" && activity_id) {
                 query = query_gen.docs_with_ids([activity_id]);
-            } else {
-                query = query_gen.set_query_for_type(type);
             }
             await endpoint.query_activities(query).then(res_activities => {
                 res_activities.forEach(a => on_new_activity_retrieved(a));
@@ -529,7 +561,6 @@ function reset_routes() {
     activities_db.clear();
     map.clear_all();
 
-    current_route_type = "";
     current_page = 0;
     query_gen.reset();
     has_more_data.value = true;
@@ -547,8 +578,9 @@ async function onRouteTypeRequested(type: string, activity_id?: DocumentId) {
 
     reset_routes();
     current_route_type = type.toString();
+    query_gen.set_query_for_type(current_route_type, radius_start, radius_end);
 
-    retrieve_query_type(query_gen.set_query_for_type(type), activity_id);
+    retrieve_query_type(type, activity_id);
 }
 
 function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
@@ -616,13 +648,65 @@ function showNoResultsMessage() {
     errorToast.show();
 }
 
+function try_interpret_searchRequest(): boolean {
+    let search_query = searchQuery.value.toLowerCase();
+
+    let matches = search_query.match(/(rides|runs)\sin\s(\w*)/);
+    if (matches) {
+        let type = "Ride";
+        switch (matches[1].toLowerCase()) {
+            case "run":
+            case "runs":
+                type = "Run";
+                break;
+            case "ride":
+            case "rides":
+                type = "Ride";
+                break;
+            case "hike":
+            case "hikes":
+                type = "Hike";
+                break;
+            default:
+                return false;
+        }
+
+        let place = "Romania";
+        switch (matches[2].toLowerCase()) {
+            case "nl":
+            case "netherlands":
+            case "the netherlands":
+            case "holland":
+                place = "Netherlands";
+                break;
+            case "campina":
+                place = "Câmpina"
+                break;
+            case "bucuresti":
+                place = "Bucharest"
+                break;
+            default:
+                place = matches[2].charAt(0).toUpperCase() + matches[2].toLowerCase().slice(1);
+        }
+
+        query_gen.set_query("custom", query_gen.act_type_in_country(type, place));
+        return true;
+    }
+
+    return false;
+}
+
 async function onSearchRequest() {
+    if (searchQuery.value == "")
+        return;
+
+    is_on_statistics_page.value = false;
     is_search_query_ongoing.value = true;
     is_in_search_context.value = true;
     let start_count_down = 10;
 
     let reset_countdown = () => {
-        search_bar_text.value = "GO";
+        search_bar_btn_text.value = "GO";
         is_search_query_ongoing.value = false;
         start_count_down = 10;
     }
@@ -630,7 +714,7 @@ async function onSearchRequest() {
     let count_down = () => {
         if (is_search_query_ongoing.value) {
             start_count_down--;
-            search_bar_text.value = start_count_down.toString();
+            search_bar_btn_text.value = start_count_down.toString();
         }
 
         if (start_count_down > 0 && is_search_query_ongoing.value)
@@ -642,51 +726,74 @@ async function onSearchRequest() {
 
     setTimeout(count_down);
 
-    gptcomm.query(searchQuery.value, (obj_query: any) => {
-        reset_countdown();
-        console.log(obj_query);
-        query_gen.set_query("gpt", obj_query, true);
+    let result_has_data = (result: any): boolean => {
+        let res_type = determine_result_type(result);
 
-        endpoint.data_server.query_activities(query_gen.get_current_query()).then(result => {
-            console.log(result);            
-            let res_type = determine_result_type(result);
-
-            if ((res_type == GPTReponseType.ActivityArray || res_type == GPTReponseType.ObjectArray) && result.length == 0) {
-                showNoResultsMessage();
-                return;
-            }
-
-            let on_success = () => {
-                reset_routes();
-            };
-
-            switch (res_type) {
-                case GPTReponseType.ObjectArray: {
-                    on_success();
-
-                    console.log('Parsing response as object list')
-                    gpt_chart_data.value = result;
-
-                    break;
-                }
-                case GPTReponseType.ActivityArray: {
-                    on_success();
-
-                    console.log('Parsing response as activity list')
-
-                    result.forEach(a => on_new_activity_retrieved(a));
-                    onActivitySelected(result[0]._id);
-                    has_more_data.value = result.length == query_gen.get_results_per_page();
-
-                    break;
-                }
-
-                default:
-                    showErrorMessage();
-            }
+        if ((res_type == GPTReponseType.ActivityArray || res_type == GPTReponseType.ObjectArray) && result.length == 0) {
+            return false;
         }
-        );
-    }, (err) => { showErrorMessage() });
+
+        return true;
+    };
+
+    let display_result = (result: any) => {
+        reset_countdown();
+
+        if (!result_has_data(result)) {
+            showNoResultsMessage();
+            return;
+        }
+
+        switch (determine_result_type(result)) {
+            case GPTReponseType.ObjectArray: {
+                reset_routes();
+                current_route_type = "gpt";
+
+                console.log('Parsing response as object list')
+                gpt_chart_data.value = result;
+
+                break;
+            }
+            case GPTReponseType.ActivityArray: {
+                reset_routes();
+                current_route_type = "gpt";
+
+                console.log('Parsing response as activity list')
+
+                result.forEach((a: Activity) => on_new_activity_retrieved(a));
+                onActivitySelected(result[0]._id);
+                has_more_data.value = result.length == query_gen.get_results_per_page();
+
+                break;
+            }
+            default:
+                showErrorMessage();
+        }
+    }
+
+    let needs_gpt = true;
+
+    if (try_interpret_searchRequest()) {
+        let result = await endpoint.data_server.query_activities(query_gen.get_current_query());
+        if (result_has_data(result)) {
+            display_result(result);
+            needs_gpt = false;
+        }
+    }
+
+    if (needs_gpt) {
+        gptcomm.query(searchQuery.value, (obj_query: any) => {
+            query_gen.set_query("gpt", obj_query);
+
+            endpoint.data_server.query_activities(query_gen.get_current_query()).then(result => {
+                display_result(result);
+            });
+
+        }, (err) => {
+            reset_countdown();
+            showErrorMessage()
+        });
+    }
 }
 </script>
 <template>
@@ -700,12 +807,11 @@ async function onSearchRequest() {
 
     <div class="absolute menu-bar" style="margin-top: 4em; display: flex; flex-wrap: wrap; height: 200px;">
         <div class="input-group mb-2 rounded-pill">
-            <input type="text" v-model="searchQuery" class="form-control" placeholder="Search routes"
-                @keyup.enter.native="onSearchRequest" aria-label="Search routes"
-                aria-describedby="button-addon2" :disabled="is_search_query_ongoing"
-                style="border-top-left-radius: 50px;border-bottom-left-radius: 50px;">
+            <input type="text" v-model="searchQuery" class="form-control" placeholder="Search my activities using AI"
+                @keyup.enter.native="onSearchRequest" aria-describedby="button-addon2"
+                :disabled="is_search_query_ongoing" style="border-top-left-radius: 50px;border-bottom-left-radius: 50px;">
             <button v-on:click="onSearchRequest" class="btn btn-secondary" type="button" id="button-addon2"
-                style="border-top-right-radius: 50px; border-bottom-right-radius: 50px;">{{ search_bar_text }}</button>
+                style="border-top-right-radius: 50px; border-bottom-right-radius: 50px;">{{ search_bar_btn_text }}</button>
         </div>
 
         <div class="queries-bar btn-group mb-3" role="group" aria-label="Basic radio toggle button group">
@@ -753,8 +859,9 @@ async function onSearchRequest() {
         <GPTChart v-if="gpt_chart_data" :results_data="gpt_chart_data">
         </GPTChart>
 
-        <div id="errorToast" class="toast align-items-center" style="width: 100%!important; border-radius: 50px;margin-top: 10px;"
-            role="alert" aria-live="assertive" aria-atomic="true">
+        <div id="errorToast" class="toast align-items-center"
+            style="width: 100%!important; border-radius: 50px;margin-top: 10px;" role="alert" aria-live="assertive"
+            aria-atomic="true">
             <div class="d-flex">
                 <div class="toast-body">
                     {{ toast_message }}

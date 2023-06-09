@@ -6,9 +6,9 @@ export default class QueryGen {
 
     constructor(private ath_id: number) { }
 
-    public set_query(type: string, query: any, applyLimits?: boolean) {
+    public set_query(type: string, query: any, dontApplyLimits?: boolean) {
         this.current_type = type;
-        this.current_query = applyLimits ? this.apply_limits(query) : query;
+        this.current_query = dontApplyLimits ? query : this.apply_limits(query);
 
         this.remove_projection();
     }
@@ -17,7 +17,7 @@ export default class QueryGen {
         return this.current_query;
     }
 
-    public get_query_type() : string {
+    public get_query_type(): string {
         return this.current_type;
     }
 
@@ -27,7 +27,7 @@ export default class QueryGen {
         this.current_type = "";
     }
 
-    public get_next_page_of_current_query(): any {
+    public set_next_page_of_current_query(): any {
         if (!this.current_query)
             return null;
 
@@ -38,9 +38,14 @@ export default class QueryGen {
                 stage['$skip'] = this.current_page * this.RESULTS_LIMIT
             }
         }
+
+        return this.current_query;
     }
 
     private apply_limits(query: any) {
+        if (!query || !query.length)
+            return;
+
         let skip_applied = false;
         let limit_applied = false;
 
@@ -68,11 +73,11 @@ export default class QueryGen {
     }
 
     private remove_projection() {
-        let new_query : any[] = [];
+        let new_query: any[] = [];
         for (let stage of this.current_query) {
             if ('$project' in stage)
                 continue;
-            
+
             new_query.push(stage);
         }
 
@@ -83,26 +88,37 @@ export default class QueryGen {
         return this.RESULTS_LIMIT;
     }
 
-    public set_query_for_type(type: string): any {
+    public set_query_for_type(type: string, rad_start?: number, rad_end?: number): any {
         this.current_type = type;
 
         switch (type) {
             case "with_friends":
-                return this.acts_with_friends();
+                this.current_query = this.acts_with_friends();
+                this.apply_limits(this.current_query);
+                break;
             case "abroad":
-                return this.act_abroad()
+                this.current_query = this.act_abroad();
+                this.apply_limits(this.current_query);
+                break;
             case "epic_rides":
-                return this.act_epic_rides()
+                this.current_query = this.act_epic_rides()
+                this.apply_limits(this.current_query);
+                break;
             case "best_ascents":
-                return this.routes_gradients_over(7)
+                this.current_query = this.routes_gradients_over(7)
+                this.apply_limits(this.current_query);
+                break;
             case "unique_routes":
-                return this.unique_routes_routes()
+                this.current_query = this.unique_routes(rad_start, rad_end);
+                break;
             default:
                 console.log("WARNING: Unknown query type " + type);
-                this.reset();
+                this.current_page = 0;
                 this.current_type = type;
-                return undefined;
+                this.current_query = undefined;
         }
+
+        return this.current_query;
     }
 
     public docs_with_ids(ids: number[]): any {
@@ -111,22 +127,22 @@ export default class QueryGen {
     }
 
     public acts_with_friends(): any {
-        this.current_query = [{ "$match": { "athlete_count": { "$gt": 1 } } }, { "$skip": this.current_page * this.RESULTS_LIMIT }, { "$limit": this.RESULTS_LIMIT }];
+        this.current_query = [{ "$match": { "athlete_count": { "$gt": 1 } } }];
         return this.current_query;
     }
 
     public act_abroad(): any {
-        this.current_query = [{ "$match": { "timezone": { "$ne": "(GMT+02:00) Europe/Bucharest" } } }, { "$skip": this.current_page * this.RESULTS_LIMIT }, { "$limit": this.RESULTS_LIMIT }];
+        this.current_query = [{ "$match": { "timezone": { "$ne": "(GMT+02:00) Europe/Bucharest" } } }];
         return this.current_query;
     }
 
     public act_epic_rides(): any {
-        this.current_query = [{ "$match": { "distance": { "$gt": 100000 }, "total_elevation_gain": { "$gt": 1500 } } }, { "$sort": { "total_elevation_gain": -1 } }, { "$skip": this.current_page * this.RESULTS_LIMIT }, { "$limit": this.RESULTS_LIMIT }];
+        this.current_query = [{ "$match": { "distance": { "$gt": 100000 }, "total_elevation_gain": { "$gt": 1500 } } }, { "$sort": { "total_elevation_gain": -1 } }];
         return this.current_query;
     }
 
     public act_best_bang(): any {
-        this.current_query = [{ $addFields: { bestBang: { $divide: ["$total_elevation_gain", "$elapsed_time"] } } }, { "$sort": { bestBang: -1 } }, { "$skip": this.current_page * this.RESULTS_LIMIT }, { "$limit": this.RESULTS_LIMIT }];
+        this.current_query = [{ $addFields: { bestBang: { $divide: ["$total_elevation_gain", "$elapsed_time"] } } }, { "$sort": { bestBang: -1 } }];
         return this.current_query;
     }
 
@@ -135,21 +151,47 @@ export default class QueryGen {
         return this.current_query;
     }
 
-    public unique_routes_routes(): any {
-        this.current_query = [{ $match: { "athlete_id": this.ath_id } }, {
+    public unique_routes(radius_start?: number, radius_end?: number): any {
+        if (radius_start == undefined || radius_end == undefined)
+            return;
+
+        this.current_query = [{ $match: { "athlete_id": this.ath_id, "dist_from_capital": { $gte: radius_start, $lt: radius_end } } }, {
             $addFields: { act_count: { $size: { "$ifNull": ["$activities", []] } } }
         }, {
             $sort: { "act_count": -1 }
-        }, { "$skip": this.current_page * this.RESULTS_LIMIT }, { "$limit": this.RESULTS_LIMIT }];
+        }];
         return this.current_query;
     }
 
     public routes_gradients_over(gradient: number): any {
         this.current_query = [{
             $match: {
-                'gradients.gradient': { $gt: gradient }
+                'gradients.gradient': { $gte: gradient }
             }
-        }, { $sort: { 'gradients.gradient': -1 } }, { "$skip": this.current_page * this.RESULTS_LIMIT }, { "$limit": this.RESULTS_LIMIT }
+        }, { $sort: { 'gradients.elevation_gain': -1 } }
+        ];
+
+        return this.current_query;
+    }
+
+    public routes_gradients_below(gradient: number): any {
+        this.current_query = [{
+            $match: {
+                'gradients.gradient': { $lte: gradient }
+            }
+        }, { $sort: { 'gradients.elevation_gain': 1 } }
+        ];
+
+        return this.current_query;
+    }
+
+    public act_type_in_country(type: string, country: string) {
+        this.current_query = [{
+            $match: {
+                $and: [{ type: type },
+                { $or: [{ location_country: { $regex: country } }, { location_city: { $regex: country } }] }]
+            }
+        }
         ];
 
         return this.current_query;
