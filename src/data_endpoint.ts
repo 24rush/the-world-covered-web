@@ -11,7 +11,7 @@ interface DataRetriever {
     query_routes(query: any): Promise<Route[]>;
     query_activities(query: any): Promise<Activity[]>;
     query_efforts(query: any): Promise<Effort[]>;
-    query_statistics() : Promise<HistoryStatistics>;
+    query_statistics(): Promise<HistoryStatistics[]>;
 }
 
 class LocalServer implements DataRetriever {
@@ -55,7 +55,7 @@ class LocalServer implements DataRetriever {
         return this.post_data('/query_efforts', query);
     }
 
-    async query_statistics(): Promise<HistoryStatistics> {
+    async query_statistics(): Promise<HistoryStatistics[]> {
         return this.post_data('/query_statistics');
     }
 }
@@ -76,7 +76,7 @@ class RemoveServer implements DataRetriever {
         } catch (err) {
             console.error("Failed to log in", err);
         }
-    }    
+    }
 
     async query(database: string, collection: string, query: any) {
         await this.authenticate();
@@ -95,15 +95,15 @@ class RemoveServer implements DataRetriever {
     }
 
     async query_activities(query: any): Promise<Activity[]> {
-        return this.query("strava_db", "activities", query);       
+        return this.query("strava_db", "activities", query);
     }
 
     async query_efforts(query: any): Promise<Effort[]> {
-        return this.query("gc_db", "efforts", query);             
+        return this.query("gc_db", "efforts", query);
     }
 
-    async query_statistics(): Promise<HistoryStatistics> {
-        return this.query("gc_db", "statistics", "");             
+    async query_statistics(): Promise<HistoryStatistics[]> {
+        return this.query("gc_db", "statistics", [{ "$match": { "_id": 0 } }]);
     }
 }
 
@@ -129,7 +129,7 @@ export default class DataEndpoint {
         return this.data_server.query_efforts(query);
     }
 
-    async query_statistics(): Promise<HistoryStatistics> {
+    async query_statistics(): Promise<HistoryStatistics[]> {
         return this.data_server.query_statistics();
     }
 }

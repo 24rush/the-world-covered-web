@@ -69,12 +69,12 @@ onMounted(async () => {
 
     // Events coming from map
     map.register_hovered_handler((id: number, state: boolean) => {
-        bring_activity_into_view(id);
+        if (selected_id.value == 0) bring_activity_into_view(id);
         state ? onActivityHovered(id) : onActivityUnhovered(id);
     });
 
     map.register_poly_clicked_handler((id: number) => {
-        bring_activity_into_view(id);
+        if (selected_id.value == 0) bring_activity_into_view(id);
         onActivitySelected(id);
     });
 
@@ -534,8 +534,9 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
 
             if (!statistics.value.stats.length) {
                 await endpoint.query_statistics().then(res_stats => {
-                    res_stats.stats = res_stats.stats.reverse();
-                    statistics.value = res_stats;
+                    let history = res_stats[0];
+                    history.stats = history.stats.reverse();
+                    statistics.value = history;
                 });
             }
             break;
@@ -911,8 +912,7 @@ async function onSearchRequest() {
 }
 
 .queries-bar {
-    z-index: 1;
-    flex-basis: 90%;
+    z-index: 1;    
     margin: auto
 }
 
