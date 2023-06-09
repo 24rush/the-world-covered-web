@@ -875,9 +875,10 @@ async function onSearchRequest() {
 </template>
 
 <style>
+
 #map {
-    width: 100%;
-    height: 100%;
+  width: 100%;
+  height: 100vh;
 }
 
 .buttons-bar label:hover {
@@ -892,6 +893,8 @@ async function onSearchRequest() {
 }
 
 .menu-bar {
+    width: 90%;  
+
     z-index: 1;
     top: 4em;
     left: 50%;
@@ -906,19 +909,31 @@ async function onSearchRequest() {
 
 .buttons-bar-btn {
     margin-right: 0.5em;
-    display: flex;
     align-items: center;
     flex-wrap: wrap;
 }
 
 .queries-bar {
     z-index: 1;    
-    margin: auto
+    margin: auto;
+    flex-wrap: wrap;
 }
 
 .force_btn_unselect {
     background-color: var(--bs-btn-bg) !important;
 }
 
-@media (min-width: 1024px) {}
+@media (min-width: 480px) {
+    .menu-bar {
+        width: 90%;        
+        margin: auto;
+    }
+}
+
+@media (min-width:992px) {
+    .menu-bar {
+        width: 60%;
+    }
+}
+
 </style>
