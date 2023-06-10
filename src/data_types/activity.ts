@@ -1,3 +1,5 @@
+import { ActivityMetaData, LatLngMeta } from "./metadata";
+
 export type DocumentId = number;
 
 class Map {
@@ -66,5 +68,35 @@ export default class Activity {
         });
         
         return required_props.length == 0;
+    }
+
+    public static create_metadata(activity: Activity) {    
+        let metadata = new ActivityMetaData();
+    
+        metadata._id = activity._id;
+        metadata.type = activity.type;
+        metadata.master_activity_id = activity._id;
+        metadata.activities = [];
+    
+        metadata.polyline = activity.map.polyline;
+        metadata.description = activity.description;
+        metadata.location_city = activity.location_city ?? "";
+        metadata.location_country = activity.location_country;
+        metadata.athlete_count = activity.athlete_count;
+    
+        metadata.distance = activity.distance;
+        metadata.elevation_gain = activity.total_elevation_gain;
+        metadata.average_speed = activity.average_speed;
+        metadata.start_date_local = activity.start_date_local;
+        metadata.segment_efforts = activity.segment_efforts;
+        metadata.polyline = activity.map.polyline;
+    
+        // No counterpart fields
+        metadata.count_times = 1;
+    
+        // To be filled later when master activity is retrieved    
+        metadata.coords_center = new LatLngMeta(0, 0);
+    
+        return metadata;
     }
 }

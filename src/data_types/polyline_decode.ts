@@ -1,5 +1,5 @@
 import type { LatLngExpression } from "leaflet";
-import L from "leaflet";
+import { LatLngMeta } from "./metadata";
 
 export default class PolylineDecoder {
 
@@ -9,23 +9,16 @@ export default class PolylineDecoder {
         dimension: 2
     };
 
-    public static decodePolyline(encoded: any) {
-        
-
-        return L.polyline(PolylineDecoder.decode(encoded, PolylineDecoder.defaultOptions) as unknown as LatLngExpression[][]);
+    public static decodePolyline(encoded: any) : LatLngMeta[] {
+        return PolylineDecoder.decode(encoded, PolylineDecoder.defaultOptions);
     }
 
-    static decode(encoded: any, options: any) {
+    static decode(encoded: any, options: any) : LatLngMeta[] {
         var flatPoints = PolylineDecoder.decodeDeltas(encoded, options);
 
-        var points = [];
+        var points : LatLngMeta[] = [];
         for (var i = 0, len = flatPoints.length; i + (options.dimension - 1) < len;) {
-            var point = [];
-
-            for (var dim = 0; dim < options.dimension; ++dim) {
-                point.push(flatPoints[i++]);
-            }
-
+            var point : LatLngMeta = new LatLngMeta(flatPoints[i++], flatPoints[i++]);
             points.push(point);
         }
 

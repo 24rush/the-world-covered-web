@@ -211,6 +211,7 @@ onMounted(() => {
 .total_item {
     font-size: 15px;
     text-transform: uppercase;
+    text-align: end;
 }
 
 .total_item_value {

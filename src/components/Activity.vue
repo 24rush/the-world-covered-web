@@ -57,7 +57,7 @@ function date_formatter(date_str: String): String {
 
         <div style="width: 100%;" v-bind:id="'activity_' + id">
             <div class="d-flex">
-                <div style="max-width: 80%;">
+                <div style="max-width: 90%;">
                     <span class="fw-bold" v-if="activityMeta.location_city">{{ activityMeta.location_city
                     }}, </span>
                     <span class="fw-bold">{{ activityMeta.location_country }}</span>
@@ -72,21 +72,23 @@ function date_formatter(date_str: String): String {
                             <mountain style="height: 17px;" />
                         </span>
                         <span class="stats-item">{{ Math.ceil(activityMeta.elevation_gain) }}m </span>
-                        <span class="stats-item" v-if="activityMeta.type === 'Ride'">{{ parseFloat((activityMeta.average_speed *
-                            3.6).toString()).toFixed(1) }}km/h</span>
+                        <span class="stats-item" v-if="activityMeta.type === 'Ride'">{{
+                            parseFloat((activityMeta.average_speed *
+                                3.6).toString()).toFixed(1) }}km/h</span>
                         <span class="stats-item" v-if="activityMeta.type === 'Hike' || activityMeta.type === 'Run'">{{
                             pace_formatter(activityMeta.average_speed) }}min/km</span>
                     </div>
                 </div>
                 <div class="ml-auto">
-                    <span class="badge-item"><a class="strava_logo" v-on:mousedown.stop v-bind:href="`https://www.strava.com/activities/${activityMeta.master_activity_id}`"
+                    <span class="badge-item"><a class="strava_logo" v-on:mousedown.stop
+                            v-bind:href="`https://www.strava.com/activities/${activityMeta.master_activity_id}`"
                             target="_blank">
                             <strava />
                         </a></span>
                     <span class="badge-item" style="vertical-align: top;">
-                        <running v-if="activityMeta.isRun()" />
-                        <cycling v-if="activityMeta.isRide()" />
-                        <hiking v-if="activityMeta.isHike()" />
+                        <running v-if="activityMeta.type.toLowerCase().includes('run')" />
+                        <cycling v-if="activityMeta.type.toLowerCase().includes('ride')" />
+                        <hiking v-if="activityMeta.type.toLowerCase().includes('hike')" />
                     </span>
                     <span v-if="activityMeta.athlete_count > 1 && count_times <= 1" class="badge bg-primary rounded-pill">{{
                         activityMeta.athlete_count
@@ -107,6 +109,13 @@ function date_formatter(date_str: String): String {
 .stats-item {
     padding-right: 0.3em;
     font-weight: 300;
+    -webkit-user-select: none;
+    /* Safari */
+    -moz-user-select: none;
+    /* Firefox */
+    -ms-user-select: none;
+    /* IE10+/Edge */
+    user-select: none;
 }
 
 .fs-small {
@@ -136,5 +145,4 @@ function date_formatter(date_str: String): String {
     transition: transform .2s;
 
     background-color: bisque !important;
-}
-</style>
+}</style>

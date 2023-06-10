@@ -123,7 +123,7 @@ function hours_per_week_label_formatter(value: number): string {
                 <div class="tab-content" id="pills-tabContent">
                     <div class="tab-pane fade show active" id="pills-ride" role="tabpanel" aria-labelledby="pills-ride-tab"
                         tabindex="0">
-                        <div style="display: flex; flex-direction: row; flex-wrap: wrap; width: 80%;">
+                        <div style="display: flex; flex-direction: row; flex-wrap: wrap;">
                             <div class="stat_item">
                                 <span class="total_item_value">{{
                                     Math.ceil(statistics.stats.reduce((prev, curr) => prev + curr.total_km_rides, 0))
@@ -147,7 +147,7 @@ function hours_per_week_label_formatter(value: number): string {
                                     Math.ceil(statistics.stats.reduce((prev, curr) => prev + (curr.total_elevation_gain),
                                         0)) }}</span>
                                 <span class="total_item">elevation meters</span>
-                            </div>                            
+                            </div>
                         </div>
                         <div class="apex-chart">
                             <span class="chart_header"><span style="color: #008FFB">KM</span> + <span
@@ -162,7 +162,7 @@ function hours_per_week_label_formatter(value: number): string {
                         </div>
                     </div>
                     <div class="tab-pane fade" id="pills-run" role="tabpanel" aria-labelledby="pills-run-tab" tabindex="0">
-                        <div style="display: flex; flex-direction: row; flex-wrap: wrap; width: 80%;">
+                        <div style="display: flex; flex-direction: row; flex-wrap: wrap;">
                             <div class="stat_item">
                                 <span class="total_item_value">{{
                                     Math.ceil(statistics.stats.reduce((prev, curr) => prev + curr.total_km_runs, 0))
@@ -184,7 +184,8 @@ function hours_per_week_label_formatter(value: number): string {
                             <div class="stat_item">
                                 <span class="total_item_value">{{
                                     Math.ceil(statistics.stats.reduce((prev, curr) => prev + (curr.calories_runs), 0) /
-                                        statistics.stats.reduce((prev, curr) => prev + (curr.mins_per_week_runs * 52/60), 0)) }}</span>
+                                        statistics.stats.reduce((prev, curr) => prev + (curr.mins_per_week_runs * 52 / 60), 0))
+                                }}</span>
                                 <span class="total_item">calories/hour</span>
                             </div>
                         </div>
@@ -245,16 +246,16 @@ function hours_per_week_label_formatter(value: number): string {
 
 
                     <div class="stat_item">
-                        <div>
+                        <div style="display: flex; flex-direction: column;text-align: end;">
                             <span class="total_item_value">{{
                                 yearStats.total_kudos
                             }} </span>
-                            <span style="padding-left: 5px;">most in</span>
-                            <a class="strava_logo"
-                                v-bind:href="`https://www.strava.com/activities/${yearStats.most_kudos_activity}`"
-                                target="_blank">
-                                <strava />
-                            </a>
+                            <span style="padding-left: 5px;">most in<a class="strava_logo"
+                                    v-bind:href="`https://www.strava.com/activities/${yearStats.most_kudos_activity}`"
+                                    target="_blank">
+                                    <strava />
+                                </a></span>
+
                         </div>
                         <span class="total_item">Kudoses</span>
                     </div>
@@ -304,4 +305,5 @@ function hours_per_week_label_formatter(value: number): string {
 .chart_header {
     font-size: 18px;
     text-transform: uppercase;
-}</style>
+}
+</style>

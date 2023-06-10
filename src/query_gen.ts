@@ -108,6 +108,10 @@ export default class QueryGen {
                 this.current_query = this.routes_gradients_over(7)
                 this.apply_limits(this.current_query);
                 break;
+            case "best_descents":
+                this.current_query = this.routes_gradients_below(-4)
+                this.apply_limits(this.current_query);
+                break;
             case "unique_routes":
                 this.current_query = this.unique_routes(rad_start, rad_end);
                 break;

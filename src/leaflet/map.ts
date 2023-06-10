@@ -62,14 +62,12 @@ export default class LeafletMap {
     constructor(elem_id: string) {
         COLORS.forEach(c => this.colors_used.push(c));
 
-        this.map = L.map(elem_id);
+        this.map = L.map(elem_id, { zoomControl: false });
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         }).addTo(this.map);
-
-        this.map.setView(new LatLng(45, 25), 12);
 
         this.map.on("mousedown", (e) => {
             if (this.map_clicked_cbk)
@@ -98,6 +96,10 @@ export default class LeafletMap {
         });
     }
 
+    public getBounds() : LatLngBounds {
+        return this.map.getBounds();
+    }
+
     public register_map_clicked_cbk(cbk: MapClickedCbk) {
         this.map_clicked_cbk = cbk;
     }
@@ -115,7 +117,7 @@ export default class LeafletMap {
     }
 
     public center_at_latlng(latlng: LatLng) {
-        this.map.setView(latlng, 9);
+        this.map.setView(latlng, 12);
     }
 
     public center_view(elem_id: number) {
@@ -124,20 +126,21 @@ export default class LeafletMap {
 
         this.do_with_elem_id(elem_id, (id, polyline) => {
             this.map.panTo((polyline.getLatLngs() as LatLng[])[0]);
-            this.map.fitBounds(polyline.getBounds());
+            //this.map.fitBounds(polyline.getBounds());
         });
         this.last_centered_on_item_id = elem_id;
     }
 
     public register_polyline(id: number, polyline: string, style?: any): L.Polyline {
-        let exiting_poly = this.elem_id_to_polyline.get(id);
+        let existing_poly = this.elem_id_to_polyline.get(id);
 
-        if (exiting_poly) {
-            return exiting_poly.polyline;
+        if (existing_poly) {
+            existing_poly.polyline.bringToFront();
+            return existing_poly.polyline;
         }
 
         let self = this;
-        let gps_points = PolylineDecoder.decodePolyline(polyline);
+        let gps_points = L.polyline(PolylineDecoder.decodePolyline(polyline));
 
         let default_style = {
             "weight": Style_Poly_Default_Weight,

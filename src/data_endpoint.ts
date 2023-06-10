@@ -62,17 +62,17 @@ class LocalServer implements DataRetriever {
 
 class RemoveServer implements DataRetriever {
     private mongo: globalThis.Realm.Services.MongoDB | undefined;
+    private app = new Realm.App({ id: "application-0-mlous" });
+    private credentials = Realm.Credentials.anonymous();
 
-    public async authenticate() {
-        const app = new Realm.App({ id: "application-0-mlous" });
-        const credentials = Realm.Credentials.anonymous();
+    public async authenticate() {                
         try {
-            const user = await app.logIn(credentials);
+            if (!this.app.currentUser || !this.app.currentUser.isLoggedIn)
+                await this.app.logIn(this.credentials);
 
-            if (app.currentUser) {
-                this.mongo = app.currentUser.mongoClient("mongodb-atlas");
+            if (!this.mongo && this.app.currentUser) {
+                this.mongo = this.app.currentUser.mongoClient("mongodb-atlas");
             }
-
         } catch (err) {
             console.error("Failed to log in", err);
         }

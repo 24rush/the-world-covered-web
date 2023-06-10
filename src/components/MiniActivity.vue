@@ -61,9 +61,9 @@ function country_formatter(country: String): String {
                 <span class="stats-item">{{ Math.ceil(activityMeta.distance / 1000) }}km</span>
             </div>
             <span style="vertical-align: top;">
-                <running v-if="activityMeta.isRun()" />
-                <cycling v-if="activityMeta.isRide()" />
-                <hiking v-if="activityMeta.isHike()" />
+                <running v-if="activityMeta.type.toLowerCase().includes('run')" />
+                <cycling v-if="activityMeta.type.toLowerCase().includes('ride')" />
+                <hiking v-if="activityMeta.type.toLowerCase().includes('hike')" />
             </span>
 
             <span class="position-absolute bottom-0 end-0 badge rounded-pill bg-dark" style="max-width: 24px; margin-right: -1.2em;">
