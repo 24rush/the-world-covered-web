@@ -77,7 +77,7 @@ onMounted(async () => {
     });
 
     map.register_poly_clicked_handler((id: number) => {
-        if (selected_activity.value._id == 0) bring_activity_into_view(id);
+        bring_activity_into_view(id);
         onActivitySelected(id);
     });
 
