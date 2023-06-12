@@ -67,8 +67,8 @@ class RemoveServer implements DataRetriever {
 
     public async authenticate() {
         try {
-            if (!this.app.currentUser || !this.app.currentUser.isLoggedIn)
-                await this.app.logIn(this.credentials);
+            if (!this.app.currentUser || !this.app.currentUser.isLoggedIn || !(this.app.currentUser.state != Realm.UserState.Active))
+                await this.app.logIn(this.credentials, false);
 
             if (!this.mongo && this.app.currentUser) {
                 this.mongo = this.app.currentUser.mongoClient("mongodb-atlas");
