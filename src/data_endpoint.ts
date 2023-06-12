@@ -1,6 +1,6 @@
 import type Activity from "./data_types/activity";
 import type Effort from "./data_types/effort";
-import type Route from "./data_types/route";
+import { Route } from "@/data_types/route";
 import * as Realm from "realm-web";
 import type { HistoryStatistics } from "./data_types/statistics";
 const {
@@ -65,7 +65,7 @@ class RemoveServer implements DataRetriever {
     private app = new Realm.App({ id: "application-0-mlous" });
     private credentials = Realm.Credentials.anonymous();
 
-    public async authenticate() {                
+    public async authenticate() {
         try {
             if (!this.app.currentUser || !this.app.currentUser.isLoggedIn)
                 await this.app.logIn(this.credentials);

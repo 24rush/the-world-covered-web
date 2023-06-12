@@ -1,5 +1,5 @@
 export default class QueryGen {
-    readonly RESULTS_LIMIT: number = 10;
+    readonly RESULTS_LIMIT: number = 31;
     private current_page: number = 0;
     private current_query: any = undefined;
     private current_type: string = "";
@@ -170,7 +170,8 @@ export default class QueryGen {
     public routes_gradients_over(gradient: number): any {
         this.current_query = [{
             $match: {
-                'gradients.gradient': { $gte: gradient }
+                'gradients.gradient': { $gte: gradient },
+                'type': "RouteRide"
             }
         }, { $sort: { 'gradients.elevation_gain': -1 } }
         ];
@@ -181,7 +182,8 @@ export default class QueryGen {
     public routes_gradients_below(gradient: number): any {
         this.current_query = [{
             $match: {
-                'gradients.gradient': { $lte: gradient }
+                'gradients.gradient': { $lte: gradient },
+                'type': "RouteRide"
             }
         }, { $sort: { 'gradients.elevation_gain': 1 } }
         ];

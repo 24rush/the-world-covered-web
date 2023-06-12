@@ -3,6 +3,7 @@ import gradient from '@/icons/gradient.vue';
 import { reactive, onMounted, ref } from 'vue';
 import Strava from '@/icons/strava.vue';
 import { ActivityMetaData } from '@/data_types/metadata';
+import {Formatters} from '@/components/formatters'
 
 const emit = defineEmits(['onNextGradient', 'onPreviousGradient'])
 
@@ -71,13 +72,6 @@ const chartOptions = reactive({
 onMounted(() => {
 });
 
-function distance_formatter(distance_m: number): String {
-    if (distance_m > 1000)
-        return (distance_m / 1000).toFixed(1) + "km"
-
-    return distance_m.toFixed(0) + 'm';
-}
-
 </script>
 <template>
     <div v-if="route && route.gradients.length != 0" id="gradientCarousel" class="carousel segment-carousel slide">
@@ -95,7 +89,7 @@ function distance_formatter(distance_m: number): String {
                                     <span>{{ route.location_city }}, </span><span>&nbsp;{{ route.location_country }}</span>
                                     <div class="ml-1">
                                         <span style="padding-right: 0.5em;">{{
-                                            distance_formatter(gradient.length)
+                                            Formatters.distance_formatter(gradient.length)
                                         }}</span>
                                         <gradient style="height: 20px;" />
                                         <span>{{ gradient.avg_gradient.toFixed(1) }}%</span>

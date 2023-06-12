@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
+import { Formatters } from './formatters';
 
 var is_chartable_data = ref(false);
 var is_table_data = ref(false);
@@ -45,9 +46,9 @@ const chartOptions = reactive({
         curve: 'smooth'
     },
     xaxis: {
-        type: 'string',
+        type: "string",
         title: {
-            text: ""
+            text: "X Axis"
         }
     },
     animations: {
@@ -57,32 +58,42 @@ const chartOptions = reactive({
     yaxis: [{
         title: {
             text: 'Y Axis',
-        }
-    }, {
+        },
         type: 'string',
-        show: false
     }],
     legend: {
         show: true
     }
 });
 
+function format_field(key: string, value: number): string | number {
+    switch (key) {
+        case "avg_speed":
+            return Formatters.speed_formatter(value);
+        default:
+            return value;
+    }
+}
+
 onMounted(() => {
-    console.log(props.results_data)
+    // Returned data to display
+    //console.log(props.results_data)
 
     if (props.results_data.length && props.results_data.length > 0) {
         // { id: {year:2011}, total: 5444}
         // id, total
         let result_object_keys = Object.keys(props.results_data[0]);
 
-        if (result_object_keys.length < 2) {
+        if (props.results_data.length <= 1) {
             is_table_data.value = true;
 
             for (let result_data of Object.values(props.results_data)) {
                 for (let key of result_object_keys) {
                     let result_object_value = result_data[key];
 
-                    table_data.value.push(result_object_value);
+                    if (result_object_value) {
+                        table_data.value.push(format_field(key, result_object_value).toString());
+                    }
                 }
             }
         } else
@@ -114,13 +125,12 @@ onMounted(() => {
                         let key_name_data = key_name_and_data(result_object_value);
 
                         let actual_key = key_name_data[0] == "" ? key : key_name_data[0];
-                        let actual_value = key_name_data[1];
+                        let actual_value = format_field(actual_key, key_name_data[1]);
 
-                        console.log(actual_key + " " + actual_value);
                         if (!(actual_key in result_vectors))
                             result_vectors[actual_key] = [];
 
-                        result_vectors[actual_key].push(actual_value);
+                        result_vectors[actual_key].push(actual_value.toString());
 
                         if (time_keys.includes(actual_key)) {
                             if (time_key == "") time_key = actual_key;
@@ -133,7 +143,8 @@ onMounted(() => {
                     rest_keys.shift();
                 }
 
-                let data: string[][] = [];
+                let data: [string | number, string][] = [];
+
                 result_vectors[time_key].forEach((val, index) => {
                     let valY = result_vectors[rest_keys[0]][index];
 
@@ -142,7 +153,14 @@ onMounted(() => {
                         valY = tryFloat.toFixed(0);
                     }
 
-                    data.push([val, valY.toString()]);
+                    if (val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)) {
+                        chartOptions.xaxis.type = "datetime";
+                        data.push([val, valY.toString()]);                    
+                    } else {
+                        chartOptions.xaxis.type = "string";
+                        data.push([parseFloat(val), valY.toString()]);
+                    }
+
                 });
 
                 if (chartOptions.yaxis[0].title)

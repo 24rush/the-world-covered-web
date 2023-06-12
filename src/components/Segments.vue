@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { EffortSeries, EffortSeriesData } from '@/data_types/activity';
 import gradient from '@/icons/gradient.vue';
-import { reactive, onMounted, ref } from 'vue';
+import { reactive, ref } from 'vue';
 import { Carousel } from 'bootstrap'
 import Strava from '@/icons/strava.vue';
 import { ActivityMetaData } from '@/data_types/metadata';
+import { Formatters } from './formatters';
 
 const emit = defineEmits(['segmentEffortsRequested', 'segmentSelected', 'segmentUnselected'])
 
@@ -50,15 +51,11 @@ const chartOptions = reactive({
     dataLabels: {
         enabled: true,
         enabledOnSeries: [0],
-        formatter: function (value: number) {
-            return distance_formatter(value);
-        }
+        formatter: Formatters.distance_formatter
     },
     yaxis: [{
         labels: {
-            formatter: function (value: number) {
-                return distance_formatter(value);
-            }
+            formatter: Formatters.distance_formatter
         },
         title: {
             text: 'Distance from home',
@@ -66,9 +63,7 @@ const chartOptions = reactive({
     },
     {
         labels: {
-            formatter: function (value: number) {
-                return time_formatter(value);
-            }
+            formatter: Formatters.time_formatter
         },
         title: {
             text: 'Moving time',
@@ -120,20 +115,6 @@ function onCarouselLoaded(el: any) {
     emit('segmentSelected', extract_seg_id(segmentCarousel.querySelectorAll('.carousel-item.active')[0].id));
 }
 
-function distance_formatter(distance_m: number): String {
-    if (distance_m > 1000)
-        return (distance_m / 1000).toFixed(1) + "km"
-
-    return distance_m.toFixed(0) + 'm';
-}
-
-function time_formatter(time_sec: number): String {    
-    if (time_sec >= 3600)
-        return new Date(time_sec * 1000).toISOString().substring(11, 19) + "s"
-    else
-        return new Date(time_sec * 1000).toISOString().substring(14, 19) + "s"
-}
-
 function segmentEffortsRequested(activity: ActivityMetaData | undefined, seg_id: number, effort_id: number) {
     let button = document.querySelector('[data-bs-target="#collapse' + effort_id + '"]') as HTMLElement;
 
@@ -168,7 +149,7 @@ function min_effort(series: EffortSeries): EffortSeriesData {
                                         effort.segment.effort_series[0].data.length }} efforts)</span>
                                     <div class="ml-1">
                                         <span style="padding-right: 0.5em;">{{
-                                            distance_formatter(effort.segment.distance)
+                                            Formatters.distance_formatter(effort.segment.distance)
                                         }}</span>
                                         <gradient style="height: 20px;" />
                                         <span>{{ effort.segment.average_grade }}%</span>
@@ -190,7 +171,7 @@ function min_effort(series: EffortSeries): EffortSeriesData {
                                 style="padding-left: 1.8em; padding-top: 0.7em;">
                                 <span>Best </span>
                                 <span class="fw-bold">{{
-                                    time_formatter(min_effort(effort.segment.effort_series[1]).y) }}</span>
+                                    Formatters.time_formatter(min_effort(effort.segment.effort_series[1]).y) }}</span>
                                 <span> on </span>
                                 <span class="fw-bold">{{
                                     min_effort(effort.segment.effort_series[1]).x

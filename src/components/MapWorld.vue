@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DataEndpoint from '@/data_endpoint';
-import DataHandler from '@/data_handler';
+import DataHandler from '@/webworker_handler';
 import type { DocumentId } from '@/data_types/activity';
 import Activity, { EffortSeriesData } from '@/data_types/activity';
 import { ActivityMetaData, LatLngMeta } from '@/data_types/metadata';
@@ -575,6 +575,8 @@ async function onSearchRequest() {
     is_on_statistics_page.value = false;
     is_search_query_ongoing.value = true;
     is_in_search_context.value = true;
+    gpt_chart_data.value = undefined;
+    
     let start_count_down = 10;
 
     let reset_countdown = () => {
@@ -619,9 +621,7 @@ async function onSearchRequest() {
         switch (determine_result_type(result)) {
             case GPTReponseType.ObjectArray: {
                 reset_routes();
-                current_route_type = "gpt";
-
-                console.log('Parsing response as object list')
+                current_route_type = "gpt";                
                 gpt_chart_data.value = result;
 
                 break;
@@ -629,8 +629,6 @@ async function onSearchRequest() {
             case GPTReponseType.ActivityArray: {
                 reset_routes();
                 current_route_type = "gpt";
-
-                console.log('Parsing response as activity list')
 
                 result.forEach((a: Activity) => {
                     if (metadata_index.get(a._id))
@@ -659,10 +657,12 @@ async function onSearchRequest() {
     }
 
     if (needs_gpt) {
-        gptcomm.query(searchQuery.value, (obj_query: any) => {
+        gptcomm.query(searchQuery.value, (obj_query: any) => {            
             query_gen.set_query("gpt", obj_query);
 
             endpoint.data_server.query_activities(query_gen.get_current_query()).then(result => {
+                // Database result
+                // console.log(result);
                 display_result(result);
             });
 

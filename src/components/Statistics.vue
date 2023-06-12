@@ -2,6 +2,7 @@
 import { reactive } from 'vue';
 import strava from '@/icons/strava.vue';
 import { HistoryStatistics } from '@/data_types/statistics';
+import { Formatters } from '@/components/formatters'
 
 const props = defineProps({
     statistics: {
@@ -62,29 +63,6 @@ const chartOptions = reactive({
         show: false
     }
 });
-
-function time_formatter(time_sec: number): String {
-    if (time_sec >= 3600)
-        return new Date(time_sec * 1000).toISOString().substring(11, 19) + "s"
-    else
-        return new Date(time_sec * 1000).toISOString().substring(14, 19) + "s"
-}
-
-function hours_per_week_formatter(value: number): string {
-    if (value < 60)
-        return Math.ceil(value).toString();
-    else {
-        return (Math.floor(value / 60)).toString() + "h" + Math.floor((value % 60)).toString() + "m";
-    }
-}
-
-function hours_per_week_label_formatter(value: number): string {
-    if (value < 60)
-        return "min/week"
-    else {
-        return "hours/week"
-    }
-}
 
 </script>
 
@@ -228,15 +206,15 @@ function hours_per_week_label_formatter(value: number): string {
                         <span class="total_item">KM</span>
                     </div>
                     <div class="stat_item">
-                        <span class="total_item_value">{{ hours_per_week_formatter(
+                        <span class="total_item_value">{{ Formatters.hours_per_week_formatter(
                             yearStats.mins_per_week_rides) }}</span>
                         <span class="total_item">Hours/week</span>
                     </div>
 
                     <div class="stat_item">
-                        <span class="total_item_value">{{ hours_per_week_formatter(
+                        <span class="total_item_value">{{ Formatters.hours_per_week_formatter(
                             yearStats.mins_per_week_runs) }}</span>
-                        <span class="total_item">{{ hours_per_week_label_formatter(yearStats.mins_per_week_runs) }}</span>
+                        <span class="total_item">{{ Formatters.hours_per_week_label_formatter(yearStats.mins_per_week_runs) }}</span>
                     </div>
                     <div class="stat_item">
                         <span class="total_item_value">{{

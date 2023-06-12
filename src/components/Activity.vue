@@ -5,6 +5,7 @@ import mountain from '@/icons/mountain.vue';
 import strava from '@/icons/strava.vue';
 import hiking from '@/icons/hiking.vue';
 import { ActivityMetaData } from '@/data_types/metadata';
+import {Formatters} from '@/components/formatters'
 
 const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity'])
 
@@ -25,27 +26,6 @@ const props = defineProps({
     selected_id: Number,
 });
 
-function pace_formatter(m_per_sec: number): String {
-    var pace = 16.667 / m_per_sec;
-    var leftover = pace % 1;
-    var minutes = pace - leftover;
-    var seconds = Math.round(leftover * 60);
-
-    return minutes + ":" + (seconds < 10 ? '0' + seconds : seconds)
-}
-
-function date_formatter(date_str: String): String {
-    if (!date_str) return "";
-
-    let langCode = "ro-RO";
-    let date = new Date(date_str.toString());
-
-    var month = date.toLocaleString(langCode, { month: 'short' }); // MMM
-    var year = date.toLocaleString(langCode, { year: 'numeric' }); // YYYY
-
-    return ` ${month} ${year}`;
-}
-
 </script>
 
 <template>
@@ -61,7 +41,7 @@ function date_formatter(date_str: String): String {
                     <span class="fw-bold" v-if="activityMeta.location_city">{{ activityMeta.location_city
                     }}, </span>
                     <span class="fw-bold">{{ activityMeta.location_country }}</span>
-                    <span class="fs-small">{{ date_formatter(activityMeta.start_date_local) }}</span>
+                    <span class="fs-small">{{ Formatters.date_formatter(activityMeta.start_date_local) }}</span>
                     <div>
                         <span v-if="activityMeta.description && activityMeta.activities.length <= 1" class="">{{
                             activityMeta.description }}</span>
@@ -76,7 +56,7 @@ function date_formatter(date_str: String): String {
                             parseFloat((activityMeta.average_speed *
                                 3.6).toString()).toFixed(1) }}km/h</span>
                         <span class="stats-item" v-if="activityMeta.type === 'Hike' || activityMeta.type === 'Run'">{{
-                            pace_formatter(activityMeta.average_speed) }}min/km</span>
+                            Formatters.pace_formatter(activityMeta.average_speed) }}min/km</span>
                     </div>
                 </div>
                 <div class="ml-auto">
