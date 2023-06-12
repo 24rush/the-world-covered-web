@@ -70,7 +70,7 @@ const chartOptions = reactive({
     <div v-if="statistics && statistics.stats.length" class="statistics">
         <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
             <li class="nav-item" role="presentation" style="margin-bottom: 0.5em;">
-                <button class="btn btn-primary buttons-bar-btn rounded-pill" id="pills-home-tab" data-bs-toggle="pill"
+                <button class="btn btn-light buttons-bar-btn rounded-pill" id="pills-home-tab" data-bs-toggle="pill"
                     data-bs-target="#pills-home" type="button" role="tab" aria-controls="pills-home" tabindex="-1"
                     aria-selected="false">All</button>
             </li>

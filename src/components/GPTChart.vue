@@ -101,7 +101,7 @@ onMounted(() => {
                 is_chartable_data.value = true;
 
                 let key_name_and_data = (key: any): [string, any] => {
-                    if (typeof key === "object") {
+                    if (key != null && typeof key === "object") {
                         let key_name = Object.keys(key)[0];
 
                         if (typeof key[key_name] === 'object') {
@@ -126,6 +126,9 @@ onMounted(() => {
 
                         let actual_key = key_name_data[0] == "" ? key : key_name_data[0];
                         let actual_value = format_field(actual_key, key_name_data[1]);
+
+                        if (!actual_value)
+                            continue;
 
                         if (!(actual_key in result_vectors))
                             result_vectors[actual_key] = [];
@@ -154,13 +157,26 @@ onMounted(() => {
                     }
 
                     if (val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)) {
+                        // Checks if it is dateformat
                         chartOptions.xaxis.type = "datetime";
-                        data.push([val, valY.toString()]);                    
+                        data.push([val, valY.toString()]);
                     } else {
-                        chartOptions.xaxis.type = "string";
-                        data.push([parseFloat(val), valY.toString()]);
-                    }
+                        let tryFloat = parseFloat(val);
 
+                        // Check if numeric so we can display it directly of make categories
+                        if (Number.isNaN(tryFloat)) {
+                            //@ts-ignore
+                            if (!chartOptions.xaxis.categories)
+                                //@ts-ignore
+                                chartOptions.xaxis.categories = [];
+                            //@ts-ignore
+                            chartOptions.xaxis.categories.push(val);
+
+                            data.push([index, valY.toString()]);
+                        } else {
+                            data.push([parseFloat(val), valY.toString()]);
+                        }
+                    }
                 });
 
                 if (chartOptions.yaxis[0].title)

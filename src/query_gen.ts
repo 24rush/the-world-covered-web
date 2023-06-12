@@ -89,6 +89,7 @@ export default class QueryGen {
     }
 
     public set_query_for_type(type: string, rad_start?: number, rad_end?: number): any {
+        this.reset();
         this.current_type = type;
 
         switch (type) {

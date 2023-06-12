@@ -436,7 +436,6 @@ function reset_routes() {
     map.clear_all();
 
     current_page = 0;
-    query_gen.reset();
     has_more_data.value = true;
 
     hovered_id.value = 0;

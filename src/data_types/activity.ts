@@ -63,7 +63,11 @@ export default class Activity {
         let required_props = ['map', 'type', 'distance', 'location_city', 'location_country'];
 
         Object.keys(obj).forEach(prop => {
-            required_props.splice(required_props.findIndex(rp => rp == prop), 1);
+            let idx_prop = required_props.findIndex(rp => rp === prop);
+
+            if (idx_prop >= 0)
+                required_props.splice(idx_prop, 1);
+                
             return prop in required_props;
         });
         
