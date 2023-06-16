@@ -41,17 +41,20 @@ function onNextPageRequested() {
 <template>
     <div class="routeList" :class="{ 'routeList-mobile': isMobile() }">
         <ul class="list-group">
-            <div :class="{ 'activity_container-mobile': isMobile(), 'activity_container': !isMobile() }"
+            <div v-if="isMobile()" class="activity_container-mobile"
                 style="cursor: pointer" v-for="activity in activities"
                 :key="activity._id">
-                <MiniActivityVue v-if="isMobile()" :activity-meta="activity" :id="activity._id"
+                <MiniActivityVue :activity-meta="activity" :id="activity._id"
                     :selected_id="selected_id" v-on:selected-activity="onSelectedActivity"
-                    :count_times="activity.activities.length" />
-                <ActivityVue v-else :activity-meta="activity" :id="activity._id" v-bind:hovered_id="hovered_id"
+                    :count_times="activity.activities.length" />                
+            </div>
+            <div v-else class="activity_container" style="cursor: pointer" v-for="activity in activities">
+                <ActivityVue :activity-meta="activity" :id="activity._id" v-bind:hovered_id="hovered_id"
                     :selected_id="selected_id" v-on:selected-activity="onSelectedActivity"
                     v-on:hovered-activity="onHoveredActivity" v-on:unhovered-activity="onUnhoveredActivity"
                     :count_times="activity.activities.length" />
             </div>
+
             <li v-if="has_more_data && (activities?.length)">
                 <div :class="{ 'activity_container-mobile scroll_more_items_container-mobile': isMobile(), 'activity_container scroll_more_items_container': !isMobile() }"
                     class="list-group-item list-group-item-action d-flex justify-content-center align-items-center scroll_more_items_container"

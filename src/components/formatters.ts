@@ -35,7 +35,7 @@ export class Formatters {
         var minutes = pace - leftover;
         var seconds = Math.round(leftover * 60);
     
-        return minutes + ":" + (seconds < 10 ? '0' + seconds : seconds)
+        return minutes + ":" + (seconds < 10 ? '0' + seconds : seconds) + "min/km"
     }
     
     public static date_formatter(date_str: String): String {

@@ -5,7 +5,7 @@ import mountain from '@/icons/mountain.vue';
 import strava from '@/icons/strava.vue';
 import hiking from '@/icons/hiking.vue';
 import { ActivityMetaData } from '@/data_types/metadata';
-import {Formatters} from '@/components/formatters'
+import { Formatters } from '@/components/formatters'
 
 const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity'])
 
@@ -52,11 +52,10 @@ const props = defineProps({
                             <mountain style="height: 17px;" />
                         </span>
                         <span class="stats-item">{{ Math.ceil(activityMeta.elevation_gain) }}m </span>
-                        <span class="stats-item" v-if="activityMeta.type === 'Ride'">{{
-                            parseFloat((activityMeta.average_speed *
-                                3.6).toString()).toFixed(1) }}km/h</span>
+                        <span class="stats-item" v-if="activityMeta.type === 'Ride'"> {{
+                            Formatters.speed_formatter(activityMeta.average_speed) }} </span>
                         <span class="stats-item" v-if="activityMeta.type === 'Hike' || activityMeta.type === 'Run'">{{
-                            Formatters.pace_formatter(activityMeta.average_speed) }}min/km</span>
+                            Formatters.pace_formatter(activityMeta.average_speed) }} </span>
                     </div>
                 </div>
                 <div class="ml-auto">
@@ -125,4 +124,5 @@ const props = defineProps({
     transition: transform .2s;
 
     background-color: bisque !important;
-}</style>
+}
+</style>

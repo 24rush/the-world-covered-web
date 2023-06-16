@@ -7,7 +7,7 @@ class Map {
 }
 
 export class EffortSeriesData {
-    public x: String = "";
+    public x: Date = new Date();
     public y: number = 0;
     public activity_id: DocumentId = 0;
 }

@@ -42,7 +42,10 @@ const chartOptions = reactive({
         curve: 'smooth'
     },
     xaxis: {
-        type: 'string',
+        type: 'datetime',
+        labels: {
+            format: 'dd.MMM.yyyy'
+        }
     },
     animations: {
         enabled: false,
@@ -84,11 +87,6 @@ function onCarouselLoaded(el: any) {
     if (!segmentCarousel)
         return;
 
-    const carousel = new Carousel(segmentCarousel, {
-        interval: 2000,
-        touch: true
-    });
-
     let extract_seg_id = (id: string | undefined) => {
         if (!id)
             return 0;
@@ -110,9 +108,20 @@ function onCarouselLoaded(el: any) {
         }
     };
 
+    let first_seg_id = (): number => {
+        if (!segmentCarousel)
+            return -1;
+
+        return extract_seg_id(segmentCarousel.querySelectorAll('.carousel-item.active')[0].id);
+    };
+
     segmentCarousel.addEventListener('slid.bs.carousel', slide_event_handler);
 
-    emit('segmentSelected', extract_seg_id(segmentCarousel.querySelectorAll('.carousel-item.active')[0].id));
+    if (accordion_open.value) {
+        emit('segmentEffortsRequested', props.activity, first_seg_id());
+    }
+
+    emit('segmentSelected', first_seg_id());
 }
 
 function segmentEffortsRequested(activity: ActivityMetaData | undefined, seg_id: number, effort_id: number) {
@@ -134,7 +143,7 @@ function min_effort(series: EffortSeries): EffortSeriesData {
     <div v-if="activity && activity.segment_efforts.length != 0" id="segmentCarousel"
         class="carousel segment-carousel slide" :ref="(el) => onCarouselLoaded(el)">
         <div class="carousel-inner" style="width: 85%; margin: auto;">
-            <div v-for="(effort, index) in activity.segment_efforts" :key="effort.id" class="carousel-item"
+            <div v-for="(effort, index) in activity.segment_efforts" :key="index" class="carousel-item"
                 v-bind:id="'segment' + effort.segment.id" :class="{ 'active': index == 0 }">
                 <div class="d-flex accordion accordion-flush">
                     <div class="accordion-item" style="width: 100%;"
@@ -174,8 +183,20 @@ function min_effort(series: EffortSeries): EffortSeriesData {
                                     Formatters.time_formatter(min_effort(effort.segment.effort_series[1]).y) }}</span>
                                 <span> on </span>
                                 <span class="fw-bold">{{
-                                    min_effort(effort.segment.effort_series[1]).x
+                                    min_effort(effort.segment.effort_series[1]).x.toLocaleDateString('en-EN', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        year: 'numeric',
+                                    })
                                 }}</span>
+                                <span> with </span>
+                                <span class="fw-bold" v-if="activity.type === 'RouteRide'"> {{
+                                    Formatters.speed_formatter(effort.segment.distance /
+                                        min_effort(effort.segment.effort_series[1]).y) }} </span>
+                                <span class="fw-bold"
+                                    v-if="activity.type === 'RouteHike' || activity.type === 'RouteRun'">{{
+                                        Formatters.pace_formatter(effort.segment.distance /
+                                            min_effort(effort.segment.effort_series[1]).y) }} </span>
 
                                 <span style="padding-left: 0.2em;"><a class="strava_logo"
                                         v-bind:href="`https://www.strava.com/activities/${min_effort(effort.segment.effort_series[1]).activity_id}`"

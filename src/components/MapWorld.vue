@@ -81,7 +81,7 @@ onMounted(async () => {
         onActivitySelected(id);
     });
 
-    let update_radiuses_from_bounds = (bounds: LatLngBounds) : boolean => {
+    let update_radiuses_from_bounds = (bounds: LatLngBounds): boolean => {
         let dist_from_capital = calcCrow(bounds.getNorthWest(), mapCenter);
 
         if (dist_from_capital / 100 > radius_end) {
@@ -104,8 +104,8 @@ onMounted(async () => {
             }
         }
 
-        if (current_route_type == "unique_routes") {            
-            if (update_radiuses_from_bounds(bounds)) {                
+        if (current_route_type == "unique_routes") {
+            if (update_radiuses_from_bounds(bounds)) {
                 let query = query_gen.set_query_for_type("unique_routes", radius_start, radius_end);
 
                 datahandler.execute("unique_routes", query, (metadata_for_route: ActivityMetaData) => {
@@ -184,7 +184,7 @@ async function onActivitySelected(resource_id: DocumentId) {
         return;
     }
 
-    let select_activity = (resource_id: number, activity?: ActivityMetaData) => {
+    let select_activity = (resource_id: number, metadata_for_resource?: ActivityMetaData) => {
         selected_activity.value = metadata_for_resource ?? new ActivityMetaData();
 
         map.center_view(resource_id);
@@ -193,9 +193,9 @@ async function onActivitySelected(resource_id: DocumentId) {
         hover_polyline_of_id(resource_id, true);
 
         // Gradients don't have an associated activity
-        if (activity) {
-            generate_segment_polylines(activity);
-            highlight_first_segment(activity);
+        if (metadata_for_resource) {
+            generate_segment_polylines(metadata_for_resource);
+            highlight_first_segment(metadata_for_resource);
         }
     };
 
@@ -207,24 +207,34 @@ async function onActivitySelected(resource_id: DocumentId) {
         return;
     }
 
+    // Gradients don't need anything else so we finish
     if (metadata_for_resource.type.includes("Gradient")) {
         select_activity(resource_id);
+        return;
     }
-    else {
-        // Selecting a route or an activity
-        // - if route then we need to check if the activity was retrieved
-        let master_activity_id = metadata_for_resource.master_activity_id;
-        let cached_metadata_for_activity = metadata_index.get(master_activity_id);
 
-        if (!cached_metadata_for_activity) {
-            datahandler.execute("activities", query_gen.docs_with_ids([master_activity_id]), (activityMetadata: ActivityMetaData) => {
-                cached_metadata_for_activity = activityMetadata;
-                on_new_activity_retrieved(cached_metadata_for_activity);
-            }, () => { select_activity(resource_id, cached_metadata_for_activity); });
-        }
+    // Selecting a route or an activity
+    // - if route then we need to check if the activity was retrieved so we can fill the efforts
+    let master_activity_id = metadata_for_resource.master_activity_id;
+    let cached_metadata_for_activity = metadata_index.get(master_activity_id);
 
+    if (cached_metadata_for_activity) {
         select_activity(resource_id, cached_metadata_for_activity);
+        return;
     }
+
+    datahandler.execute("activities", query_gen.docs_with_ids([master_activity_id]), (activityMetadata: ActivityMetaData) => {
+        if (metadata_for_resource)
+            metadata_for_resource.segment_efforts = [];
+
+        activityMetadata.segment_efforts.forEach(se => {
+            if (!se.segment.effort_series)
+                se.segment.effort_series = reactive([]);
+
+            metadata_for_resource?.segment_efforts.push(se);
+        });
+
+    }, () => { select_activity(resource_id, metadata_for_resource); });
 }
 
 function highlight_first_segment(activityMetadata: ActivityMetaData) {
@@ -336,6 +346,9 @@ function find_activity_closest_to(point: LatLng): ActivityMetaData | undefined {
 }
 
 function store_metadata(meta: ActivityMetaData) {
+    if (metadata_index.has(meta._id))
+        return;
+
     metadata.push(meta);
     metadata_index.set(meta._id, meta);
 }
@@ -472,15 +485,17 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
                 year: '2-digit',
             });
 
-            moving_time_data.push({ 'x': date, 'y': effort.moving_time as number, 'activity_id': effort.activity_id as number });
-            distance_from_start_data.push({ 'x': date, 'y': parseFloat((effort.distance_from_start as number).toFixed(1)), 'activity_id': effort.activity_id as number });
+            moving_time_data.push({ 'x': new Date(effort.start_date_local.toString()), 'y': effort.moving_time as number, 'activity_id': effort.activity_id as number });
+            distance_from_start_data.push({ 'x': new Date(effort.start_date_local.toString()), 'y': parseFloat((effort.distance_from_start as number).toFixed(1)), 'activity_id': effort.activity_id as number });
         }
+        
+        activity.segment_efforts.forEach(segment => {
+            if (segment.segment.id != seg_id)
+                return;
 
-        let segment = activity.segment_efforts.find(se => se.segment.id == seg_id);
-        if (!segment) return;
-
-        segment.segment.effort_series.push({ type: 'line', name: "Distance from home", data: distance_from_start_data });
-        segment.segment.effort_series.push({ type: 'area', name: "Moving time", data: moving_time_data });
+            segment.segment.effort_series[0] = { type: 'line', name: "Distance from home", data: distance_from_start_data };
+            segment.segment.effort_series[1] = { type: 'area', name: "Moving time", data: moving_time_data };
+        });
     });
 }
 
@@ -575,7 +590,7 @@ async function onSearchRequest() {
     is_search_query_ongoing.value = true;
     is_in_search_context.value = true;
     gpt_chart_data.value = undefined;
-    
+
     let start_count_down = 10;
 
     let reset_countdown = () => {
@@ -620,7 +635,7 @@ async function onSearchRequest() {
         switch (determine_result_type(result)) {
             case GPTReponseType.ObjectArray: {
                 reset_routes();
-                current_route_type = "gpt";                
+                current_route_type = "gpt";
                 gpt_chart_data.value = result;
 
                 break;
@@ -656,7 +671,7 @@ async function onSearchRequest() {
     }
 
     if (needs_gpt) {
-        gptcomm.query(searchQuery.value, (obj_query: any) => {            
+        gptcomm.query(searchQuery.value, (obj_query: any) => {
             query_gen.set_query("gpt", obj_query);
 
             endpoint.data_server.query_activities(query_gen.get_current_query()).then(result => {
