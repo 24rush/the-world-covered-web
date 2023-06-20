@@ -6,6 +6,7 @@ import strava from '@/icons/strava.vue';
 import hiking from '@/icons/hiking.vue';
 import { ActivityMetaData } from '@/data_types/metadata';
 import { Formatters } from '@/components/formatters'
+import { computed } from '@vue/reactivity';
 
 const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity'])
 
@@ -24,12 +25,28 @@ const props = defineProps({
     },
     hovered_id: Number,
     selected_id: Number,
+    filter_type: String,
+});
+
+const shouldShow = computed(() => {
+    let shouldShow = true;
+    let filter_tokens = props.filter_type?.split('|');
+
+    filter_tokens?.forEach(token => {        
+        if (token && props.activityMeta.type.toLowerCase().includes(token)) {
+            shouldShow = false;    
+        }
+    
+    });
+
+    return shouldShow;
 });
 
 </script>
 
 <template>
-    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
+    <div v-if="shouldShow"
+        class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
         :class="{ 'list-group-item-hover': hovered_id === activityMeta._id && selected_id == 0, 'list-group-item-selected': selected_id === activityMeta._id }"
         :key="activityMeta._id" v-on:mouseenter="emit('hoveredActivity', activityMeta._id)"
         v-on:mouseleave="emit('unhoveredActivity', activityMeta._id)"

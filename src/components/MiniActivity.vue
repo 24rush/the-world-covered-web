@@ -48,7 +48,8 @@ function country_formatter(country: String): String {
         <div class="d-flex justify-content-between align-items-center" style="line-height: 1.2; flex-direction: column;"
             v-bind:id="'activity_' + id">
             <span v-if="count_times > 1"
-                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark badge-times">{{ count_times
+                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark badge-times">{{
+                    count_times
                 }}x</span>
 
             <span v-if="activityMeta.athlete_count > 1 && count_times <= 1"
@@ -66,11 +67,12 @@ function country_formatter(country: String): String {
                 <hiking v-if="activityMeta.type.toLowerCase().includes('hike')" />
             </span>
 
-            <span class="position-absolute bottom-0 end-0 badge rounded-pill bg-dark" style="max-width: 24px; margin-right: -1.2em;">
+            <span class="position-absolute bottom-0 end-0 badge rounded-pill bg-dark"
+                style="max-width: 24px; margin-right: -1.2em;">
                 <span class=""><a v-on:mousedown.stop
                         v-bind:href="`https://www.strava.com/activities/${activityMeta.master_activity_id}`"
                         target="_blank">
-                        <strava style="height: 15px; width: 15px; margin-left: -0.2em;"/>
+                        <strava style="height: 15px; width: 15px; margin-left: -0.2em;" />
                     </a></span>
             </span>
 
@@ -91,11 +93,11 @@ function country_formatter(country: String): String {
 }
 
 .badge-times {
+    display: flex;
+    justify-content: center;
     max-width: 24px;
     height: 24px;
-    padding-top: 6px;
-    padding-right: 18px;
+    align-items: center;
     margin-top: 1em;
-    font-weight: 500;
 }
 </style>
