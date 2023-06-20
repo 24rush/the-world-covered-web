@@ -1,6 +1,6 @@
 import DataEndpoint from '@/data_endpoint';
 import Activity from '@/data_types/activity';
-import {Gradient, Route} from '@/data_types/route'
+import { Gradient, Route } from '@/data_types/route'
 
 var endpoint = new DataEndpoint();
 
@@ -17,7 +17,8 @@ onmessage = async (event) => {
 
             break;
         }
-        case "unique_routes": {
+        case "unique_routes":
+        case "most_ridden": {
             await endpoint.query_routes(event.data.query).then(res_routes => {
                 res_routes.forEach(route => {
                     postbackItemMessage(event, Route.create_metadata(route));

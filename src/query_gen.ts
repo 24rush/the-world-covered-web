@@ -116,6 +116,9 @@ export default class QueryGen {
             case "unique_routes":
                 this.current_query = this.unique_routes(rad_start, rad_end);
                 break;
+            case "most_ridden":
+                this.current_query = this.most_ridden();
+                break;
             default:
                 console.log("WARNING: Unknown query type " + type);
                 this.current_page = 0;
@@ -163,6 +166,19 @@ export default class QueryGen {
         this.current_query = [{ $match: { "athlete_id": this.ath_id, "dist_from_capital": { $gte: radius_start, $lt: radius_end } } }, {
             $addFields: { act_count: { $size: { "$ifNull": ["$activities", []] } } }
         }, {
+            $sort: { "act_count": -1 }
+        }];
+        return this.current_query;
+    }
+
+    public most_ridden(): any {
+        this.current_query = [{ $match: { "athlete_id": this.ath_id } }, {
+            $addFields: { act_count: { $size: { "$ifNull": ["$activities", []] } } }
+        },
+        {
+            $match: { act_count: { $gt: 1 } }
+        },
+        {
             $sort: { "act_count": -1 }
         }];
         return this.current_query;

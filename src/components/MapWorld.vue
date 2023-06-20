@@ -384,7 +384,8 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
     let query: any = query_gen.get_current_query();
 
     switch (type) {
-        case "unique_routes": {
+        case "unique_routes":
+        case "most_ridden": {
             let first_item = true;
             datahandler.execute("unique_routes", query, (metadata_for_route: ActivityMetaData) => {
                 store_metadata(metadata_for_route);
@@ -488,7 +489,7 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
             moving_time_data.push({ 'x': new Date(effort.start_date_local.toString()), 'y': effort.moving_time as number, 'activity_id': effort.activity_id as number });
             distance_from_start_data.push({ 'x': new Date(effort.start_date_local.toString()), 'y': parseFloat((effort.distance_from_start as number).toFixed(1)), 'activity_id': effort.activity_id as number });
         }
-        
+
         activity.segment_efforts.forEach(segment => {
             if (segment.segment.id != seg_id)
                 return;
@@ -712,6 +713,13 @@ async function onSearchRequest() {
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('unique_routes')" for="btnradio_unique">all routes</label>
             </div>
+            <div class="query-pill">
+                <input type="radio" class="btn-check" name="btnradio" id="btnradio_most" autocomplete="off">
+                <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
+                    v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
+                    v-bind:onClick="() => onRouteTypeRequested('most_ridden')" for="btnradio_most">most ridden</label>
+            </div>
+
             <div class="query-pill">
                 <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
