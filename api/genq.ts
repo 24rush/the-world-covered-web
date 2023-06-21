@@ -12,16 +12,13 @@ export default async function handler(req, res) {
     'Access-Control-Allow-Headers',
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
   )
+
   if (req.method === 'OPTIONS') {
     res.status(200).end()
-    return
+    return;
   }
 
   const { prompt } = req.body;
-  /*
-  const { prompt } = (await req.json()) as {
-    prompt?: string;
-  };*/
 
   const payload = {
     model: "text-davinci-003",
@@ -35,19 +32,15 @@ export default async function handler(req, res) {
     stop: ['#', ';']
   };
 
-  if (true) { // Bypass openai or not
-    const response = await fetch("https://api.openai.com/v1/completions", {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY ?? ""}`,
-      },
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+  const response = await fetch("https://api.openai.com/v1/completions", {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY ?? ""}`,
+    },
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 
-    const json = await response.json();
-    res.status(200).end(JSON.stringify(json));
-  } else {
-    res.status(200).end(JSON.stringify(payload));
-  }
+  const json = await response.json();
+  res.status(200).end(JSON.stringify(json));
 }

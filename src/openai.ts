@@ -23,6 +23,43 @@ export default class GPTCommunicator {
     {$group: {_id: {$dateToString: {format: "%Y-%m-%d", date: "$start_date_local"}}, count: {$sum: 1}}}
 ])`;
 
+  readonly sample_response3 = `db.activities.aggregate([
+      {$match: {type: "Run", distance: {$gt: 20000}}},
+      {$project: {
+          type: 1,
+          distance: 1,
+          average_speed: 1,
+          elapsed_time: 1,
+          total_elevation_gain: 1,
+          location_city: 1,
+          location_country: 1,
+          start_date_local: 1,
+          athlete_count: 1
+      }}
+  ])`;
+
+  readonly sample_response5 = `db.activities.aggregate([
+      {
+          $match: {
+              type: "Run"
+          }
+      },
+      {
+          $group: {
+              _id: "$location_city",
+              total_distance: {$sum: "$distance"},
+              average_speed: {$avg: "$average_speed"},
+              total_elevation_gain: {$sum: "$total_elevation_gain"},
+              athlete_count: {$sum: "$athlete_count"}
+          }
+      },
+      {
+          $sort: {
+              total_distance: -1
+          }
+      }
+  ])`;
+
   public async query(searchQuery: string, cbkOk: onGPTResponse, cbkErr: onGPTResponse) {
     if (!cbkOk)
       return;
