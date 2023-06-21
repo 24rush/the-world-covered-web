@@ -96,7 +96,7 @@ export default class LeafletMap {
         });
     }
 
-    public getBounds() : LatLngBounds {
+    public getBounds(): LatLngBounds {
         return this.map.getBounds();
     }
 
@@ -120,13 +120,21 @@ export default class LeafletMap {
         this.map.setView(latlng, 12);
     }
 
+    public zoom_to(elem_id: number) {
+        this.do_with_elem_id(elem_id, (id, polyline) => {
+            this.map.panTo((polyline.getLatLngs() as LatLng[])[0]);
+            this.map.fitBounds(polyline.getBounds());
+        });
+    }
+
     public center_view(elem_id: number) {
         if (this.last_centered_on_item_id == elem_id)
             return;
 
         this.do_with_elem_id(elem_id, (id, polyline) => {
-            this.map.panTo((polyline.getLatLngs() as LatLng[])[0]);
-            //this.map.fitBounds(polyline.getBounds());
+            let center_point = (polyline.getLatLngs() as LatLng[])[0];
+            this.map.panTo(center_point);
+            this.map.setView(polyline.getCenter(), 10);
         });
         this.last_centered_on_item_id = elem_id;
     }
@@ -149,7 +157,7 @@ export default class LeafletMap {
 
         if (!style)
             style = default_style;
-        
+
         gps_points.setStyle(style);
         gps_points.redraw();
 

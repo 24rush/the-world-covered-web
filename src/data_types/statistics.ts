@@ -20,6 +20,8 @@ class YearStats {
 
     public total_kudos = 0;
     public most_kudos_activity = 0;
+
+    public vo2max = 0;
     ////
 
     //TODO distribution per days of week

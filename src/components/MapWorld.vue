@@ -8,7 +8,7 @@ import PolylineDecoder from '@/data_types/polyline_decode';
 import { HistoryStatistics } from '@/data_types/statistics';
 import LeafletMap from '@/leaflet/map';
 import GPTCommunicator from '@/openai';
-import QueryGen from '@/query_gen';
+import QueryGen, { RouteTypes } from '@/query_gen';
 import { Toast } from 'bootstrap';
 import L, { LatLng, LatLngBounds } from 'leaflet';
 import { onMounted, reactive, ref } from 'vue';
@@ -104,11 +104,11 @@ onMounted(async () => {
             }
         }
 
-        if (current_route_type == "unique_routes") {
+        if (current_route_type == RouteTypes.Unique) {
             if (update_radiuses_from_bounds(bounds)) {
-                let query = query_gen.set_query_for_type("unique_routes", radius_start, radius_end);
+                let query = query_gen.set_query_for_type(current_route_type, radius_start, radius_end);
 
-                datahandler.execute("unique_routes", query, (metadata_for_route: ActivityMetaData) => {
+                datahandler.execute(current_route_type, query, (metadata_for_route: ActivityMetaData) => {
                     store_metadata(metadata_for_route);
                     map.register_polyline(metadata_for_route._id, metadata_for_route.polyline);
                 }, () => {
@@ -130,8 +130,8 @@ onMounted(async () => {
     }
     else {
         update_radiuses_from_bounds(map.getBounds());
-        onRouteTypeRequested("unique_routes");
-        (document.getElementById('btnradio_unique') as HTMLInputElement).checked = true;
+        onRouteTypeRequested(RouteTypes.Unique);
+        (document.getElementById('btn_unique_routes') as HTMLInputElement).checked = true;
     }
 })
 
@@ -187,7 +187,7 @@ async function onActivitySelected(resource_id: DocumentId) {
     let select_activity = (resource_id: number, metadata_for_resource?: ActivityMetaData) => {
         selected_activity.value = metadata_for_resource ?? new ActivityMetaData();
 
-        map.center_view(resource_id);
+        map.zoom_to(resource_id);
 
         hovered_id.value = resource_id;
         hover_polyline_of_id(resource_id, true);
@@ -271,7 +271,7 @@ function onSegmentSelected(seg_id: DocumentId) {
         selected_seg_id = seg_id;
         map.register_polyline(seg_id, seg.polyline, {
             "weight": 5.4,
-            "color": "#fc5200".toString()
+            "color": "#FFFF00".toString()
         }).bringToFront();
     }
 }
@@ -384,25 +384,25 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
     let query: any = query_gen.get_current_query();
 
     switch (type) {
-        case "unique_routes":
-        case "most_ridden": {
+        case RouteTypes.Unique:
+        case RouteTypes.MostRidden: {
             let first_item = true;
-            datahandler.execute("unique_routes", query, (metadata_for_route: ActivityMetaData) => {
+            datahandler.execute(type, query, (metadata_for_route: ActivityMetaData) => {
                 store_metadata(metadata_for_route);
                 map.register_polyline(metadata_for_route._id, metadata_for_route.polyline);
                 if (first_item) {
                     map.center_view(metadata_for_route._id);
                     first_item = false;
                 }
-            }, () => {
+            }, (noItems: number) => {
                 // Unique routes have no limit as we are looking for new routes as the map moves
-                has_more_data.value = false;
+                has_more_data.value = type == RouteTypes.Unique ? false : (noItems == query_gen.get_results_per_page());
                 //highlight_new_item_received();
             });
             break;
         }
-        case "best_ascents":
-        case "best_descents": {
+        case RouteTypes.Ascents:
+        case RouteTypes.Descents: {
             datahandler.execute(type, query, (metadata_gradient: ActivityMetaData) => {
                 store_metadata(metadata_gradient);
                 map.register_polyline(metadata_gradient._id, metadata_gradient.polyline);
@@ -706,12 +706,12 @@ async function onSearchRequest() {
                 style="border-top-right-radius: 50px; border-bottom-right-radius: 50px;">{{ search_bar_btn_text }}</button>
         </div>
 
-        <div class="queries-bar btn-group mb-3" role="group" aria-label="Basic radio toggle button group">
+        <div class="queries-bar btn-group mb-3" role="group">
             <div class="query-pill">
-                <input type="radio" class="btn-check" name="btnradio" id="btnradio_unique" autocomplete="off">
+                <input type="radio" class="btn-check" name="btnradio" id="btn_unique_routes" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
-                    v-bind:onClick="() => onRouteTypeRequested('unique_routes')" for="btnradio_unique">all routes</label>
+                    v-bind:onClick="() => onRouteTypeRequested('unique_routes')" for="btn_unique_routes">all routes</label>
             </div>
             <div class="query-pill">
                 <input type="radio" class="btn-check" name="btnradio" id="btnradio_most" autocomplete="off">
@@ -726,13 +726,6 @@ async function onSearchRequest() {
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('epic_rides')" for="btnradio2">epic rides</label>
             </div>
-
-            <div class="query-pill">
-                <input type="radio" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
-                <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
-                    v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
-                    v-bind:onClick="() => onRouteTypeRequested('best_descents')" for="btnradio3">best descents</label>
-            </div>
             <div class="query-pill">
                 <input type="radio" class="btn-check" name="btnradio" id="btnradio4" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
@@ -740,10 +733,16 @@ async function onSearchRequest() {
                     v-bind:onClick="() => onRouteTypeRequested('abroad')" for="btnradio4">abroad</label>
             </div>
             <div class="query-pill">
+                <input type="radio" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
+                <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
+                    v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
+                    v-bind:onClick="() => onRouteTypeRequested('best_descents')" for="btnradio3">descents</label>
+            </div>
+            <div class="query-pill">
                 <input type="radio" class="btn-check" name="btnradio" id="btnradio5" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
-                    v-bind:onClick="() => onRouteTypeRequested('best_ascents')" for="btnradio5">best ascents</label>
+                    v-bind:onClick="() => onRouteTypeRequested('best_ascents')" for="btnradio5">climbs</label>
             </div>
             <div class="query-pill">
                 <input type="radio" class="btn-check" name="btnradio" id="btnradio6" autocomplete="off">

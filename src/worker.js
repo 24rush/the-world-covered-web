@@ -42,9 +42,9 @@ onmessage = async (event) => {
         case "best_descents": {
             await endpoint.query_routes(event.data.query).then(res_routes => {
                 let metadata = [];
+                let comparator = event.data.query_type == "best_ascents" ? (g) => g.avg_gradient >= 7 : (g) => g.avg_gradient <= -4;
 
                 res_routes.forEach(route => {
-                    let comparator = event.data.type == "best_ascents" ? (g) => g.avg_gradient >= 7 : (g) => g.avg_gradient <= -4;
 
                     for (let gradient of route.gradients) {
                         if (!comparator(gradient))
@@ -54,14 +54,14 @@ onmessage = async (event) => {
                     }
                 });
 
-                let C = event.data.type == "best_ascents" ? 1 : -1;
+                let C = event.data.query_type == "best_ascents" ? 1 : -1;
                 metadata = metadata.sort((a, b) => C * b.gradients[0].elevation_gain - C * a.gradients[0].elevation_gain)
 
                 for (let metadata_for_gradient of metadata) {
                     postbackItemMessage(event, metadata_for_gradient);
                 }
 
-                postbackDoneMessage(event, metadata.length);
+                postbackDoneMessage(event, res_routes.length);
             });
             break;
         }
