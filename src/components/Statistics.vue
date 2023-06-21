@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { reactive } from 'vue';
-import strava from '@/icons/strava.vue';
 import { HistoryStatistics } from '@/data_types/statistics';
 import { Formatters } from '@/components/formatters'
 
@@ -10,7 +9,7 @@ const props = defineProps({
     },
 });
 
-const chartOptions = reactive({
+const baseChartOptions = {
     chart: {
         toolbar: {
             show: false
@@ -45,24 +44,43 @@ const chartOptions = reactive({
         enabled: false,
     },
     colors: ['#00E396', '#008FFB', '#FFAEBC'],
-    yaxis: [{
-        title: {
-            text: 'Average speed (km/h)',
-        }
-    },
-    {
-        title: {
-            text: 'Distance',
-        },
-        opposite: true,
-    }, {
-        type: 'string',
-        show: false
-    }],
     legend: {
         show: false
+    },
+    yaxis: []
+};
+
+let one_yaxis = [{
+    title: {
+        text: 'VO2MAX (km/h)',
     }
-});
+}, {
+
+    show: false
+}];
+
+let two_yaxis = [{
+    title: {
+        text: 'Average speed (mL/kg/min)',
+    }
+},
+{
+    title: {
+        text: 'Distance',
+    },
+    opposite: true,
+}, {
+    type: 'string',
+    show: false
+}];
+
+let oneYAxisOptions = { ...baseChartOptions };
+oneYAxisOptions.yaxis = oneYAxisOptions.yaxis.concat(one_yaxis as any);
+const oneYAxisChartOptions = reactive(oneYAxisOptions);
+
+let twoYAxisOptions = { ...baseChartOptions };
+twoYAxisOptions.yaxis = twoYAxisOptions.yaxis.concat(two_yaxis as any)
+const twoYAxisChartOptions = reactive(twoYAxisOptions);
 
 </script>
 
@@ -131,7 +149,7 @@ const chartOptions = reactive({
                             <span class="chart_header"><span style="color: #008FFB">KM</span> + <span
                                     style="color: #00E396">Average speed</span> + <span style="color: rgb(243 96 121);">
                                     companions</span></span>
-                            <apexchart :options="chartOptions" height="200" :series="[
+                            <apexchart :options="twoYAxisChartOptions" height="200" :series="[
                                 { name: 'avg', type: 'line', data: statistics.stats.map(year => [year.year, (3.6 * year.avg_speed_rides).toFixed(1)]) },
                                 { name: 'KM', type: 'area', data: statistics.stats.map(year => [year.year, Math.ceil(year.total_km_rides)]) },
                                 { name: 'rides with friends', type: 'bar', data: statistics.stats.map(year => [year.year, Math.ceil(year.rides_with_friends)]) },
@@ -170,12 +188,18 @@ const chartOptions = reactive({
                         <div class="apex-chart">
                             <span class="chart_header"><span style="color: #008FFB">KM</span> + <span
                                     style="color: #00E396">Average speed</span></span>
-                            <apexchart :options="chartOptions" height="200"
+                            <apexchart :options="twoYAxisChartOptions" height="200"
                                 :series="[
                                     { name: 'avg', type: 'line', data: statistics.stats.map(year => [year.year, (3.6 * year.avg_speed_runs).toFixed(1)]) },
                                     { name: 'KM', type: 'area', data: statistics.stats.map(year => [year.year, Math.ceil(year.total_km_runs)]) }]">
                             </apexchart>
-
+                        </div>
+                        <div class="apex-chart">
+                            <span class="chart_header"><span style="color: #00E396">VO<sub>2</sub>MAX</span></span>
+                            <apexchart :options="oneYAxisChartOptions" height="200"
+                                :series="[
+                                    { name: 'VO2MAX', type: 'area', data: statistics.stats.map(year => [year.year, year.vo2max.toFixed(1)]) }]">
+                            </apexchart>
                         </div>
                     </div>
                 </div>
@@ -214,7 +238,8 @@ const chartOptions = reactive({
                     <div class="stat_item">
                         <span class="total_item_value">{{ Formatters.hours_per_week_formatter(
                             yearStats.mins_per_week_runs) }}</span>
-                        <span class="total_item">{{ Formatters.hours_per_week_label_formatter(yearStats.mins_per_week_runs) }}</span>
+                        <span class="total_item">{{ Formatters.hours_per_week_label_formatter(yearStats.mins_per_week_runs)
+                        }}</span>
                     </div>
                     <div class="stat_item">
                         <span class="total_item_value">{{
@@ -225,17 +250,13 @@ const chartOptions = reactive({
 
                     <div class="stat_item">
                         <div style="display: flex; flex-direction: column;text-align: end;">
-                            <span class="total_item_value">{{
-                                yearStats.total_kudos
-                            }} </span>
-                            <span style="padding-left: 5px;">most in<a class="strava_logo"
-                                    v-bind:href="`https://www.strava.com/activities/${yearStats.most_kudos_activity}`"
-                                    target="_blank">
-                                    <strava />
-                                </a></span>
-
+                            <a v-bind:href="`https://www.strava.com/activities/${yearStats.best_12min_act_id}`"
+                                target="_blank">
+                                <span class="total_item_value">{{
+                                    yearStats.vo2max.toFixed(1)
+                                }} </span></a>
                         </div>
-                        <span class="total_item">Kudoses</span>
+                        <span class="total_item">VO<sub>2</sub>max</span>
                     </div>
                 </div>
             </div>

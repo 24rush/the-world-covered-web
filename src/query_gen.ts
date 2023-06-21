@@ -1,3 +1,12 @@
+export enum RouteTypes {
+    Unique = "unique_routes",
+    MostRidden = "most_ridden",
+    Epic = "epic_rides",
+    Abroad = "abroad",
+    Descents = "best_descents",
+    Ascents = "best_ascents"
+};
+
 export default class QueryGen {
     readonly RESULTS_LIMIT: number = 31;
     private current_page: number = 0;
@@ -97,27 +106,28 @@ export default class QueryGen {
                 this.current_query = this.acts_with_friends();
                 this.apply_limits(this.current_query);
                 break;
-            case "abroad":
+            case RouteTypes.Abroad:
                 this.current_query = this.act_abroad();
                 this.apply_limits(this.current_query);
                 break;
-            case "epic_rides":
+            case RouteTypes.Epic:
                 this.current_query = this.act_epic_rides()
                 this.apply_limits(this.current_query);
                 break;
-            case "best_ascents":
+            case RouteTypes.Ascents:
                 this.current_query = this.routes_gradients_over(7)
                 this.apply_limits(this.current_query);
                 break;
-            case "best_descents":
+            case RouteTypes.Descents:
                 this.current_query = this.routes_gradients_below(-4)
                 this.apply_limits(this.current_query);
                 break;
-            case "unique_routes":
+            case RouteTypes.Unique:
                 this.current_query = this.unique_routes(rad_start, rad_end);
                 break;
-            case "most_ridden":
+            case RouteTypes.MostRidden:
                 this.current_query = this.most_ridden();
+                this.apply_limits(this.current_query);
                 break;
             default:
                 console.log("WARNING: Unknown query type " + type);
