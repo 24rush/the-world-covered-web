@@ -468,6 +468,9 @@ function reset_routes() {
     selected_activity.value = new ActivityMetaData();
 
     gpt_chart_data.value = undefined;
+
+    aiMsgToast.hide();
+    errorToast.hide();
 }
 
 async function onRouteTypeRequested(type: string, activity_id?: DocumentId) { 
