@@ -131,7 +131,7 @@ function onFilterRuns() {
 }
 
 .scrollable {
-    overflow-y: scroll;
+    overflow-y: auto;
     height: 100%;
 }
 

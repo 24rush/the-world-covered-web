@@ -46,6 +46,7 @@ var radius_end: number = 0;
 var radius_start: number = 0;
 
 var errorToast: bootstrap.Toast;
+var aiMsgToast: bootstrap.Toast;
 var toast_message = ref("");
 
 var endpoint: DataEndpoint = new DataEndpoint();
@@ -62,10 +63,20 @@ var has_more_data = ref(true);
 var mapCenter = new LatLng(44.45, 26.196306);
 
 onMounted(async () => {
+    // Wake up vercel if in production
+    if (window.location.hostname != "localhost") {
+        fetch('https://the-world-covered.vercel.app/api/ping');
+    }
+
     errorToast = new Toast("#errorToast", {
         animation: true,
         autohide: true,
         delay: 4000
+    });
+
+    aiMsgToast = new Toast("#aiMessageToast", {
+        animation: true,
+        autohide: false
     });
 
     map = new LeafletMap("map");
@@ -455,9 +466,11 @@ function reset_routes() {
     hovered_id.value = 0;
     selected_seg_id = 0;
     selected_activity.value = new ActivityMetaData();
+
+    gpt_chart_data.value = undefined;
 }
 
-async function onRouteTypeRequested(type: string, activity_id?: DocumentId) {
+async function onRouteTypeRequested(type: string, activity_id?: DocumentId) { 
     if (current_route_type == type)
         return;
 
@@ -533,6 +546,10 @@ function showErrorMessage() {
 function showNoResultsMessage() {
     toast_message.value = "The query did not return any results. Try something else!";
     errorToast.show();
+}
+
+function onShowAIHelpMessage() {
+    aiMsgToast.show();
 }
 
 function try_interpret_searchRequest(): boolean {
@@ -704,6 +721,10 @@ async function onSearchRequest() {
                 style="border-top-left-radius: 50px;border-bottom-left-radius: 50px;">
             <button v-on:click="onSearchRequest" class="btn btn-secondary" type="button" id="button-addon2"
                 style="border-top-right-radius: 50px; border-bottom-right-radius: 50px;">{{ search_bar_btn_text }}</button>
+
+            <span class="btn btn-light buttons-bar-btn rounded-pill query-label"
+                v-on:click="onShowAIHelpMessage"
+                style="margin-left: 6px; align-self: center; font-weight: 600;">?</span>
         </div>
 
         <div class="queries-bar btn-group mb-3" role="group">
@@ -773,6 +794,45 @@ async function onSearchRequest() {
                     {{ toast_message }}
                 </div>
                 <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+               
+        <div id="aiMessageToast" class="toast align-items-center"
+            style="max-height: 70vh; width: 100%!important; border-radius: 50px;margin-top: 10px;" role="alert" aria-live="assertive"
+            aria-atomic="true">
+            <div class="d-flex" style="">
+                <div class="toast-body" style="padding: 25px 40px;max-height: 70vh!important; overflow: auto!important;">
+                    <p>You can use natural language to query the database but there are a few things you need to know.</p>
+                    <p>The collection of activities is characterized by:</p>
+                    <ul>
+                        <li>a <b>type</b> (ride, run, hike)</li>
+                        <li>
+                            physical details like: <b>distance, duration, average speed, elevation gain</b>
+                        </li>
+                        <li>
+                            details about where they took place like the <b>city</b> and <b>country</b>
+                        </li>
+                        <li>
+                            when they took place in terms of <b>date</b>
+                        </li>
+                        <li>
+                            how many other people took part in it
+                        </li>
+                    </ul>
+                    <p>Having these considered, a successful query will need to ask something about the features described above like:</p>
+                    <ul>
+                        <li><i>how many rides with friends</i></li>
+                        <li><i>which is the longest ride</i></li>
+                        <li><i>number of activities per month in 2023</i></li>                        
+                        <li><i>runs in 2022</i></li>
+                        <li><i>kilometers run per month in 2022</i></li>                        
+                        <li><i>rides in The Netherlands</i></li>
+                        <li><i>ride with most elevation</i></li>
+                    </ul>
+                    <p>PS: Units of parameters should be meters or seconds and passed as such as OpenAI doesn't seem to do a pretty good job at conversions.</p>
+                </div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+
             </div>
         </div>
 
