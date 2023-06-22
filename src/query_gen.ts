@@ -165,7 +165,30 @@ export default class QueryGen {
     }
 
     public efforts_on_seg_id(seg_id: number): any {
-        this.current_query = [{ $match: { "segment_id": seg_id } }, { $sort: { "start_date_local": 1 } }]
+        this.current_query = [{
+            $match: {
+                "segment_efforts.segment.id": seg_id
+            }
+        },
+        { $sort: { "segment_efforts.start_date_local": 1 } },
+        {
+            $addFields: {
+                "segment_efforts": {
+                    "$filter": {
+                        "input": "$segment_efforts",
+                        "cond": {
+                            "$eq": ["$$this.segment.id", seg_id]
+                        }
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                "segment_efforts": 1
+            }
+        }];
+
         return this.current_query;
     }
 

@@ -1,5 +1,4 @@
-import type Activity from "./data_types/activity";
-import type Effort from "./data_types/effort";
+import { Activity } from "./data_types/activity";
 import { Route } from "@/data_types/route";
 import * as Realm from "realm-web";
 import type { HistoryStatistics } from "./data_types/statistics";
@@ -10,7 +9,7 @@ const {
 interface DataRetriever {
     query_routes(query: any): Promise<Route[]>;
     query_activities(query: any): Promise<Activity[]>;
-    query_efforts(query: any): Promise<Effort[]>;
+    query_efforts(query: any): Promise<Activity[]>;
     query_statistics(): Promise<HistoryStatistics[]>;
 }
 
@@ -51,7 +50,7 @@ class LocalServer implements DataRetriever {
         return this.post_data('/query_activities', query);
     }
 
-    async query_efforts(query: any): Promise<Effort[]> {
+    async query_efforts(query: any): Promise<Activity[]> {
         return this.post_data('/query_efforts', query);
     }
 
@@ -98,8 +97,8 @@ class RemoveServer implements DataRetriever {
         return this.query("strava_db", "activities", query);
     }
 
-    async query_efforts(query: any): Promise<Effort[]> {
-        return this.query("gc_db", "efforts", query);
+    async query_efforts(query: any): Promise<Activity[]> {
+        return this.query("strava_db", "activities", query);
     }
 
     async query_statistics(): Promise<HistoryStatistics[]> {
@@ -125,7 +124,7 @@ export default class DataEndpoint {
         return this.data_server.query_activities(query);
     }
 
-    async query_efforts(query: any): Promise<Effort[]> {
+    async query_efforts(query: any): Promise<Activity[]> {
         return this.data_server.query_efforts(query);
     }
 

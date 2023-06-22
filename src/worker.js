@@ -1,5 +1,5 @@
 import DataEndpoint from '@/data_endpoint';
-import Activity from '@/data_types/activity';
+import { Activity } from '@/data_types/activity';
 import { Gradient, Route } from '@/data_types/route'
 
 var endpoint = new DataEndpoint();

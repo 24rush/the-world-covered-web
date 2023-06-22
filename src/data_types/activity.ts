@@ -2,7 +2,7 @@ import { ActivityMetaData, LatLngMeta } from "./metadata";
 
 export type DocumentId = number;
 
-class Map {
+export class Map {
     public polyline: string = "";
 }
 
@@ -18,7 +18,7 @@ export class EffortSeries {
     public data: EffortSeriesData[] = [];
 }
 
-class ActivitySegment {
+export class ActivitySegment {
     public id: number = 0;   
     public distance: number = 0;
     public average_grade: number = 0;
@@ -34,14 +34,18 @@ export class ActivityEffort {
     public id: number = 0;    
     public segment: ActivitySegment = new ActivitySegment();
     public name: String = "";
+    public moving_time: Number = 0;
     public start_index_poly: number = 0;
-    public end_index_poly: number = 0;
+    public end_index_poly: number = 0;    
+    
+    public distance_from_start: Number = 0;
+    public start_date_local: String = "";
 
     // View model - filled in by client
     public polyline: string = "";
 }
 
-export default class Activity {
+export class Activity {
     public _id: number = 0;    
     public map: Map = new Map;
 

@@ -2,7 +2,7 @@
 import DataEndpoint from '@/data_endpoint';
 import DataHandler from '@/webworker_handler';
 import type { DocumentId } from '@/data_types/activity';
-import Activity, { EffortSeriesData } from '@/data_types/activity';
+import { Activity, EffortSeriesData } from '@/data_types/activity';
 import { ActivityMetaData, LatLngMeta } from '@/data_types/metadata';
 import PolylineDecoder from '@/data_types/polyline_decode';
 import { HistoryStatistics } from '@/data_types/statistics';
@@ -75,7 +75,23 @@ onMounted(async () => {
         delay: 4000
     });
 
-    aiMsgToast = new Toast("#aiMessageToast", {
+    let element_ai_toast = document.getElementById('aiMessageToast');
+
+    let statistics_opened = false;
+
+    element_ai_toast?.addEventListener('show.bs.toast', () => {
+        statistics_opened = is_on_statistics_page.value;        
+        is_on_statistics_page.value = false;
+        gpt_chart_data.value = undefined;
+    });
+
+    element_ai_toast?.addEventListener('hide.bs.toast', () => {
+        if (statistics_opened) {
+            is_on_statistics_page.value = true;
+        }
+    });
+
+    aiMsgToast = new Toast(element_ai_toast as Element, {
         animation: true,
         autohide: false
     });
@@ -412,7 +428,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                 }
             }, (noItems: number) => {
                 // Unique routes have no limit as we are looking for new routes as the map moves
-                has_more_data.value = type == RouteTypes.Unique ? false : (noItems == query_gen.get_results_per_page());                 
+                has_more_data.value = type == RouteTypes.Unique ? false : (noItems == query_gen.get_results_per_page());
                 is_downloading_routes.value = false;
             });
             break;
@@ -423,7 +439,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                 store_metadata(metadata_gradient);
                 map.register_polyline(metadata_gradient._id, metadata_gradient.polyline);
             }, (noItems: number) => {
-                has_more_data.value = noItems == query_gen.get_results_per_page();                
+                has_more_data.value = noItems == query_gen.get_results_per_page();
                 is_downloading_routes.value = false;
 
                 highlight_new_item_received();
@@ -439,7 +455,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                     statistics.value = history_statistic;
                 });
             }
-            
+
             is_downloading_routes.value = false;
             break;
         }
@@ -455,7 +471,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
 
                 on_new_activity_retrieved(activityMetaData);
             }, (noItems: number) => {
-                has_more_data.value = noItems == query_gen.get_results_per_page();                
+                has_more_data.value = noItems == query_gen.get_results_per_page();
                 is_downloading_routes.value = false;
 
                 highlight_new_item_received();
@@ -483,7 +499,7 @@ function reset_routes() {
     errorToast.hide();
 }
 
-async function onRouteTypeRequested(type: string, activity_id?: DocumentId) { 
+async function onRouteTypeRequested(type: string, activity_id?: DocumentId) {
     if (current_route_type.value == type)
         return;
 
@@ -500,19 +516,16 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     }
 
     // Retrieve all efforts for this activity
-    endpoint.query_efforts(query_gen.efforts_on_seg_id(seg_id)).then(efforts => {
+    endpoint.query_efforts(query_gen.efforts_on_seg_id(seg_id)).then(activities_containing_effort => {
         let moving_time_data: EffortSeriesData[] = [];
         let distance_from_start_data: EffortSeriesData[] = [];
 
-        for (let effort of efforts) {
-            let date = (new Date(effort.start_date_local.toString())).toLocaleDateString('ro-RO', {
-                day: '2-digit',
-                month: 'short',
-                year: '2-digit',
-            });
+        for (let activity of activities_containing_effort) {
+            for (let effort_segment of activity.segment_efforts) {
 
-            moving_time_data.push({ 'x': new Date(effort.start_date_local.toString()), 'y': effort.moving_time as number, 'activity_id': effort.activity_id as number });
-            distance_from_start_data.push({ 'x': new Date(effort.start_date_local.toString()), 'y': parseFloat((effort.distance_from_start as number).toFixed(1)), 'activity_id': effort.activity_id as number });
+                moving_time_data.push({ 'x': new Date(effort_segment.start_date_local.toString()), 'y': effort_segment.moving_time as number, 'activity_id': activity._id as number });
+                distance_from_start_data.push({ 'x': new Date(effort_segment.start_date_local.toString()), 'y': parseFloat((effort_segment.distance_from_start as number).toFixed(1)), 'activity_id': activity._id as number });
+            }
         }
 
         activity.segment_efforts.forEach(segment => {
@@ -664,7 +677,7 @@ async function onSearchRequest() {
 
         switch (determine_result_type(result)) {
             case GPTReponseType.ObjectArray: {
-                reset_routes();                
+                reset_routes();
                 set_current_route_type("gpt");
                 gpt_chart_data.value = result;
 
@@ -734,55 +747,63 @@ async function onSearchRequest() {
             <button v-on:click="onSearchRequest" class="btn btn-secondary" type="button" id="button-addon2"
                 style="border-top-right-radius: 50px; border-bottom-right-radius: 50px;">{{ search_bar_btn_text }}</button>
 
-            <span class="btn btn-light buttons-bar-btn rounded-pill query-label"
-                v-on:click="onShowAIHelpMessage"
+            <span class="btn btn-light buttons-bar-btn rounded-pill query-label" v-on:click="onShowAIHelpMessage"
                 style="margin-left: 6px; align-self: center; font-weight: 600;">?</span>
         </div>
 
         <div class="queries-bar btn-group mb-3" role="group">
             <div class="query-pill">
-                <input type="radio" :value="RouteTypes.Unique" v-model="current_route_type" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btn_unique_routes" autocomplete="off">
+                <input type="radio" :value="RouteTypes.Unique" v-model="current_route_type"
+                    :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btn_unique_routes"
+                    autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('unique_routes')" for="btn_unique_routes">all routes</label>
             </div>
 
             <div class="query-pill">
-                <input type="radio" :value="RouteTypes.MostRidden" v-model="current_route_type" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio_most" autocomplete="off">
+                <input type="radio" :value="RouteTypes.MostRidden" v-model="current_route_type"
+                    :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio_most"
+                    autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('most_ridden')" for="btnradio_most">most ridden</label>
             </div>
 
             <div class="query-pill">
-                <input type="radio" :value="RouteTypes.Epic" v-model="current_route_type" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
+                <input type="radio" :value="RouteTypes.Epic" v-model="current_route_type" :disabled="is_downloading_routes"
+                    class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('epic_rides')" for="btnradio2">epic rides</label>
             </div>
             <div class="query-pill">
-                <input type="radio" :value="RouteTypes.Abroad" v-model="current_route_type" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio4" autocomplete="off">
+                <input type="radio" :value="RouteTypes.Abroad" v-model="current_route_type"
+                    :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio4" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('abroad')" for="btnradio4">abroad</label>
             </div>
 
             <div class="query-pill">
-                <input type="radio" :value="RouteTypes.Descents" v-model="current_route_type" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
+                <input type="radio" :value="RouteTypes.Descents" v-model="current_route_type"
+                    :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('best_descents')" for="btnradio3">descents</label>
             </div>
 
             <div class="query-pill">
-                <input type="radio" :value="RouteTypes.Ascents" v-model="current_route_type" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio5" autocomplete="off">
+                <input type="radio" :value="RouteTypes.Ascents" v-model="current_route_type"
+                    :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio5" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('best_ascents')" for="btnradio5">climbs</label>
             </div>
 
             <div class="query-pill">
-                <input type="radio" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio6" autocomplete="off">
+                <input type="radio" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio6"
+                    autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('statistics')" for="btnradio6">statistics</label>
@@ -812,10 +833,10 @@ async function onSearchRequest() {
                 <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
         </div>
-               
+
         <div id="aiMessageToast" class="toast align-items-center"
-            style="max-height: 70vh; width: 100%!important; border-radius: 50px;margin-top: 10px;" role="alert" aria-live="assertive"
-            aria-atomic="true">
+            style="max-height: 70vh; width: 100%!important; border-radius: 50px;margin-top: 10px;" role="alert"
+            aria-live="assertive" aria-atomic="true">
             <div class="d-flex" style="">
                 <div class="toast-body" style="padding: 25px 40px;max-height: 70vh!important; overflow: auto!important;">
                     <p>You can use natural language to query the database but there are a few things you need to know.</p>
@@ -835,17 +856,19 @@ async function onSearchRequest() {
                             how many other people took part in it
                         </li>
                     </ul>
-                    <p>Having these considered, a successful query will need to ask something about the features described above like:</p>
+                    <p>Having these considered, a successful query will need to ask something about the features described
+                        above like:</p>
                     <ul>
                         <li><i>how many rides with friends</i></li>
                         <li><i>which is the longest ride</i></li>
-                        <li><i>number of activities per month in 2023</i></li>                        
+                        <li><i>number of activities per month in 2023</i></li>
                         <li><i>runs in 2022</i></li>
-                        <li><i>kilometers run per month in 2022</i></li>                        
+                        <li><i>kilometers run per month in 2022</i></li>
                         <li><i>rides in The Netherlands</i></li>
                         <li><i>ride with most elevation</i></li>
                     </ul>
-                    <p>PS: Units of parameters should be meters or seconds and passed as such as OpenAI doesn't seem to do a pretty good job at conversions.</p>
+                    <p>PS: Units of parameters should be meters or seconds and passed as such as OpenAI doesn't seem to do a
+                        pretty good job at conversions.</p>
                 </div>
                 <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
 
