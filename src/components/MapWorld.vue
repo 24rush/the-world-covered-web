@@ -56,8 +56,9 @@ var gptcomm: GPTCommunicator = new GPTCommunicator();
 // Query related data
 var query_gen: QueryGen = new QueryGen(4399230); // Athlete id which is required for some queries
 var current_page = 0;
-var current_route_type = "";
+var current_route_type = ref("");
 var has_more_data = ref(true);
+var is_downloading_routes = ref(false);
 
 // Bucharest
 var mapCenter = new LatLng(44.45, 26.196306);
@@ -115,11 +116,11 @@ onMounted(async () => {
             }
         }
 
-        if (current_route_type == RouteTypes.Unique) {
+        if (current_route_type.value == RouteTypes.Unique) {
             if (update_radiuses_from_bounds(bounds)) {
-                let query = query_gen.set_query_for_type(current_route_type, radius_start, radius_end);
+                let query = query_gen.set_query_for_type(current_route_type.value, radius_start, radius_end);
 
-                datahandler.execute(current_route_type, query, (metadata_for_route: ActivityMetaData) => {
+                datahandler.execute(current_route_type.value, query, (metadata_for_route: ActivityMetaData) => {
                     store_metadata(metadata_for_route);
                     map.register_polyline(metadata_for_route._id, metadata_for_route.polyline);
                 }, () => {
@@ -142,7 +143,6 @@ onMounted(async () => {
     else {
         update_radiuses_from_bounds(map.getBounds());
         onRouteTypeRequested(RouteTypes.Unique);
-        (document.getElementById('btn_unique_routes') as HTMLInputElement).checked = true;
     }
 })
 
@@ -314,7 +314,7 @@ function onPreviousGradient(gradient_id: number) {
 function onNextPageRequested(page: number) {
     current_page = page;
     query_gen.set_next_page_of_current_query();
-    retrieve_query_type(current_route_type);
+    retrieve_query_type(current_route_type.value);
 }
 
 function hover_polyline_of_id(id: number, hover: boolean) {
@@ -377,11 +377,16 @@ function on_new_activity_retrieved(activityMetadata: ActivityMetaData) {
     store_metadata(activityMetadata);
 }
 
+function set_current_route_type(type: string) {
+    current_route_type.value = type;
+}
+
 async function retrieve_query_type(type: string, activity_id?: DocumentId) {
     searchQuery.value = "";
     is_on_statistics_page.value = false;
     is_in_search_context.value = false;
     is_search_query_ongoing.value = false;
+    is_downloading_routes.value = true;
 
     let highlight_new_item_received = () => {
         if (metadata.length) {
@@ -407,8 +412,8 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                 }
             }, (noItems: number) => {
                 // Unique routes have no limit as we are looking for new routes as the map moves
-                has_more_data.value = type == RouteTypes.Unique ? false : (noItems == query_gen.get_results_per_page());
-                //highlight_new_item_received();
+                has_more_data.value = type == RouteTypes.Unique ? false : (noItems == query_gen.get_results_per_page());                 
+                is_downloading_routes.value = false;
             });
             break;
         }
@@ -418,7 +423,9 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                 store_metadata(metadata_gradient);
                 map.register_polyline(metadata_gradient._id, metadata_gradient.polyline);
             }, (noItems: number) => {
-                has_more_data.value = noItems == query_gen.get_results_per_page();
+                has_more_data.value = noItems == query_gen.get_results_per_page();                
+                is_downloading_routes.value = false;
+
                 highlight_new_item_received();
             });
             break;
@@ -432,13 +439,14 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                     statistics.value = history_statistic;
                 });
             }
+            
+            is_downloading_routes.value = false;
             break;
         }
 
         default: {
             if (type == "activity_id" && activity_id) {
                 query = query_gen.docs_with_ids([activity_id]);
-
             }
 
             datahandler.execute("activities", query, (activityMetaData: ActivityMetaData) => {
@@ -447,7 +455,9 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
 
                 on_new_activity_retrieved(activityMetaData);
             }, (noItems: number) => {
-                has_more_data.value = noItems == query_gen.get_results_per_page();
+                has_more_data.value = noItems == query_gen.get_results_per_page();                
+                is_downloading_routes.value = false;
+
                 highlight_new_item_received();
             });
         }
@@ -474,13 +484,12 @@ function reset_routes() {
 }
 
 async function onRouteTypeRequested(type: string, activity_id?: DocumentId) { 
-    if (current_route_type == type)
+    if (current_route_type.value == type)
         return;
 
     reset_routes();
-    current_route_type = type.toString();
-    query_gen.set_query_for_type(current_route_type, radius_start, radius_end);
-
+    query_gen.set_query_for_type(type, radius_start, radius_end);
+    set_current_route_type(type);
     retrieve_query_type(type, activity_id);
 }
 
@@ -655,15 +664,15 @@ async function onSearchRequest() {
 
         switch (determine_result_type(result)) {
             case GPTReponseType.ObjectArray: {
-                reset_routes();
-                current_route_type = "gpt";
+                reset_routes();                
+                set_current_route_type("gpt");
                 gpt_chart_data.value = result;
 
                 break;
             }
             case GPTReponseType.ActivityArray: {
                 reset_routes();
-                current_route_type = "gpt";
+                set_current_route_type("gpt");
 
                 result.forEach((a: Activity) => {
                     if (metadata_index.get(a._id))
@@ -732,44 +741,48 @@ async function onSearchRequest() {
 
         <div class="queries-bar btn-group mb-3" role="group">
             <div class="query-pill">
-                <input type="radio" class="btn-check" name="btnradio" id="btn_unique_routes" autocomplete="off">
+                <input type="radio" :value="RouteTypes.Unique" v-model="current_route_type" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btn_unique_routes" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('unique_routes')" for="btn_unique_routes">all routes</label>
             </div>
+
             <div class="query-pill">
-                <input type="radio" class="btn-check" name="btnradio" id="btnradio_most" autocomplete="off">
+                <input type="radio" :value="RouteTypes.MostRidden" v-model="current_route_type" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio_most" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('most_ridden')" for="btnradio_most">most ridden</label>
             </div>
 
             <div class="query-pill">
-                <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
+                <input type="radio" :value="RouteTypes.Epic" v-model="current_route_type" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('epic_rides')" for="btnradio2">epic rides</label>
             </div>
             <div class="query-pill">
-                <input type="radio" class="btn-check" name="btnradio" id="btnradio4" autocomplete="off">
+                <input type="radio" :value="RouteTypes.Abroad" v-model="current_route_type" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio4" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('abroad')" for="btnradio4">abroad</label>
             </div>
+
             <div class="query-pill">
-                <input type="radio" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
+                <input type="radio" :value="RouteTypes.Descents" v-model="current_route_type" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('best_descents')" for="btnradio3">descents</label>
             </div>
+
             <div class="query-pill">
-                <input type="radio" class="btn-check" name="btnradio" id="btnradio5" autocomplete="off">
+                <input type="radio" :value="RouteTypes.Ascents" v-model="current_route_type" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio5" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('best_ascents')" for="btnradio5">climbs</label>
             </div>
+
             <div class="query-pill">
-                <input type="radio" class="btn-check" name="btnradio" id="btnradio6" autocomplete="off">
+                <input type="radio" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio6" autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
                     v-bind:onClick="() => onRouteTypeRequested('statistics')" for="btnradio6">statistics</label>
