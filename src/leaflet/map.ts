@@ -4,20 +4,6 @@ import { LatLng, LatLngBounds } from "leaflet";
 import 'leaflet/dist/leaflet.css';
 import L from "leaflet";
 
-const COLORS = [
-    "#B3E5FC",
-    "#81D4FA",
-    "#4FC3F7",
-    "#29B6F6",
-    "#039BE5",
-    "#0288D1",
-    "#0277BD",
-    "#01579B",
-    "#80D8FF",
-    "#40C4FF",
-    "#00B0FF",
-    "#0091EA"];
-
 const Style_Poly_Default_Weight = 3;
 
 class Style {
@@ -60,8 +46,6 @@ export default class LeafletMap {
     last_centered_on_item_id: number = 0;
 
     constructor(elem_id: string) {
-        COLORS.forEach(c => this.colors_used.push(c));
-
         this.map = L.map(elem_id, { zoomControl: false });
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {

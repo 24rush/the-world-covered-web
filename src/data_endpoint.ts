@@ -59,7 +59,7 @@ class LocalServer implements DataRetriever {
     }
 }
 
-class RemoveServer implements DataRetriever {
+class RemoteServer implements DataRetriever {
     private mongo: globalThis.Realm.Services.MongoDB | undefined;
     private app = new Realm.App({ id: "application-0-mlous" });
     private credentials = Realm.Credentials.anonymous();
@@ -113,7 +113,7 @@ export default class DataEndpoint {
         let is_local = false;
 
         if (!is_local)
-            this.data_server = new RemoveServer();
+            this.data_server = new RemoteServer();
     }
 
     async query_routes(query: any): Promise<Route[]> {
