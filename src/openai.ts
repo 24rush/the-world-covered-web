@@ -2,11 +2,6 @@
 export type onGPTResponse = (responseObj?: any) => void;
 
 export default class GPTCommunicator {
-  readonly queryContext = `### MongoDB collections, with their properties:
-    #Activities (_id, type, distance, average_speed, elapsed_time, total_elevation_gain, location_city, location_country, start_date_local, athlete_count)
-    ### The database holds rides and run activities for an athlete. 
-    #Create a query by using aggregate for `;
-
   readonly sample_response0 = `"
   db.activities.aggregate([
       {$match: {location_country: {$ne: "Romania"}, type: "Ride", }},
@@ -86,7 +81,7 @@ export default class GPTCommunicator {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ 'prompt': this.queryContext + searchQuery })
+        body: JSON.stringify({ 'prompt': searchQuery })
       }).then(response => response.json())
         .then(data => {
           handle_gpt_response(data);

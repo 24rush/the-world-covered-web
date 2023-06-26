@@ -13,11 +13,16 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { prompt } = req.body;
+  let queryContext = `### MongoDB collection, with its properties:
+  #Activities (_id, type, distance, average_speed, elapsed_time, total_elevation_gain, location_city, location_country, start_date_local, athlete_count)
+  ### The database stores ride and run activities for an athlete. Distance units are meters. Time units are seconds.
+  #Create a query by using only aggregate for `;
+
+  const { prompt } = req.body;  
 
   const payload = {
     model: "text-davinci-003",
-    prompt,
+    prompt: queryContext + prompt,
     temperature: 0,
     top_p: 1,
     frequency_penalty: 0,

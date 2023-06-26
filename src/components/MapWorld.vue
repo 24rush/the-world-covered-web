@@ -538,31 +538,6 @@ function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
     });
 }
 
-enum GPTReponseType {
-    Unknown,
-    Activity,
-    ActivityArray,
-    ObjectArray,
-    Text
-}
-
-function determine_result_type(result: any): GPTReponseType {
-    switch (typeof result) {
-        case "object":
-            let obj_to_parse = result.length && result.length > 0 ? result[0] : result;
-
-            if (Activity.canParseFromObject(obj_to_parse))
-                return result.length > 0 ? GPTReponseType.ActivityArray : GPTReponseType.Activity;
-            else
-                return GPTReponseType.ObjectArray;
-        case "string": {
-            return GPTReponseType.Text;
-        }
-        default:
-            return GPTReponseType.Unknown;
-    }
-}
-
 function showErrorMessage() {
     toast_message.value = "Ohh no! ChatGPT couldn't decipher this query. Try rephrasing!";
     errorToast.show();
@@ -623,6 +598,32 @@ function try_interpret_searchRequest(): boolean {
     }
 
     return false;
+}
+
+
+enum GPTReponseType {
+    Unknown,
+    Activity,
+    ActivityArray,
+    ObjectArray,
+    Text
+}
+
+function determine_result_type(result: any): GPTReponseType {
+    switch (typeof result) {
+        case "object":
+            let obj_to_parse = result.length && result.length > 0 ? result[0] : result;
+
+            if (Activity.canParseFromObject(obj_to_parse))
+                return result.length > 0 ? GPTReponseType.ActivityArray : GPTReponseType.Activity;
+            else
+                return GPTReponseType.ObjectArray;
+        case "string": {
+            return GPTReponseType.Text;
+        }
+        default:
+            return GPTReponseType.Unknown;
+    }
 }
 
 async function onSearchRequest() {
