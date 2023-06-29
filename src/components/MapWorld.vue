@@ -61,7 +61,7 @@ var has_more_data = ref(true);
 var is_downloading_routes = ref(false);
 
 // Bucharest
-var mapCenter = new LatLng(44.45, 26.196306);
+var capitalCityLocation = new LatLng(44.45, 26.196306);
 
 onMounted(async () => {
     // Wake up vercel if in production
@@ -80,7 +80,7 @@ onMounted(async () => {
     let statistics_opened = false;
 
     element_ai_toast?.addEventListener('show.bs.toast', () => {
-        statistics_opened = is_on_statistics_page.value;        
+        statistics_opened = is_on_statistics_page.value;
         is_on_statistics_page.value = false;
         gpt_chart_data.value = undefined;
     });
@@ -110,7 +110,7 @@ onMounted(async () => {
     });
 
     let update_radiuses_from_bounds = (bounds: LatLngBounds): boolean => {
-        let dist_from_capital = calcCrow(bounds.getNorthWest(), mapCenter);
+        let dist_from_capital = calcCrow(bounds.getNorthWest(), capitalCityLocation);
 
         if (dist_from_capital / 100 > radius_end) {
             radius_start = radius_end;
@@ -147,7 +147,7 @@ onMounted(async () => {
         }
     });
 
-    map.center_at_latlng(mapCenter);
+    map.center_at_latlng(capitalCityLocation);
 
     // Verify if we have a special URL
     // 1. actid=<>
@@ -602,28 +602,9 @@ function try_interpret_searchRequest(): boolean {
 
 
 enum GPTReponseType {
-    Unknown,
-    Activity,
+    Empty,
     ActivityArray,
     ObjectArray,
-    Text
-}
-
-function determine_result_type(result: any): GPTReponseType {
-    switch (typeof result) {
-        case "object":
-            let obj_to_parse = result.length && result.length > 0 ? result[0] : result;
-
-            if (Activity.canParseFromObject(obj_to_parse))
-                return result.length > 0 ? GPTReponseType.ActivityArray : GPTReponseType.Activity;
-            else
-                return GPTReponseType.ObjectArray;
-        case "string": {
-            return GPTReponseType.Text;
-        }
-        default:
-            return GPTReponseType.Unknown;
-    }
 }
 
 async function onSearchRequest() {
@@ -658,25 +639,21 @@ async function onSearchRequest() {
 
     setTimeout(count_down);
 
-    let result_has_data = (result: any): boolean => {
-        let res_type = determine_result_type(result);
+    let determine_db_result_type = (result: any): GPTReponseType => {        
+        // We got an empty array of objects
+        if ('length' in result && result.length == 0)
+            return GPTReponseType.Empty;
 
-        if ((res_type == GPTReponseType.ActivityArray || res_type == GPTReponseType.ObjectArray) && result.length == 0) {
-            return false;
-        }
+        // We got an array of objects
+        let obj_to_parse = result.length && result.length > 0 ? result[0] : result;
 
-        return true;
+        return Activity.canParseFromObject(obj_to_parse) ? GPTReponseType.ActivityArray : GPTReponseType.ObjectArray;
     };
 
     let display_result = (result: any) => {
         reset_countdown();
 
-        if (!result_has_data(result)) {
-            showNoResultsMessage();
-            return;
-        }
-
-        switch (determine_result_type(result)) {
+        switch (determine_db_result_type(result)) {
             case GPTReponseType.ObjectArray: {
                 reset_routes();
                 set_current_route_type("gpt");
@@ -699,8 +676,10 @@ async function onSearchRequest() {
 
                 break;
             }
-            default:
-                showErrorMessage();
+            case GPTReponseType.Empty: {
+                showNoResultsMessage();
+                break;
+            }
         }
     }
 
@@ -708,7 +687,9 @@ async function onSearchRequest() {
 
     if (try_interpret_searchRequest()) {
         let result = await endpoint.data_server.query_activities(query_gen.get_current_query());
-        if (result_has_data(result)) {
+        let res_type = determine_db_result_type(result);
+
+        if (res_type != GPTReponseType.Empty) {
             display_result(result);
             needs_gpt = false;
         }
@@ -719,8 +700,7 @@ async function onSearchRequest() {
             query_gen.set_query("gpt", obj_query);
 
             endpoint.data_server.query_activities(query_gen.get_current_query()).then(result => {
-                // Database result
-                // console.log(result);
+                // Database result                
                 display_result(result);
             });
 

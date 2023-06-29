@@ -1,5 +1,5 @@
 export class Formatters {
-    public static time_formatter(time_sec: number): String {
+    public static time_formatter(time_sec: number): string {
         if (time_sec >= 3600)
             return new Date(time_sec * 1000).toISOString().substring(11, 19) + "s"
         else

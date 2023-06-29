@@ -66,12 +66,15 @@ const chartOptions = reactive({
     }
 });
 
-function format_field(key: string, value: number): string | number {
+function format_field(key: string, value: number): [string, string | number] {
     switch (key) {
         case "avg_speed":
-            return Formatters.speed_formatter(value);
+        case "average_speed":
+            return ["Average speed", Formatters.speed_formatter(value)];
+        case "elapsed_time":
+            return ["Elapsed time", Formatters.time_formatter(value)];
         default:
-            return value;
+            return [key, value];
     }
 }
 
@@ -92,7 +95,8 @@ onMounted(() => {
                     let result_object_value = result_data[key];
 
                     if (result_object_value) {
-                        table_data.value.push(format_field(key, result_object_value).toString());
+                        let formatted_fields = format_field(key, result_object_value); 
+                        table_data.value.push(formatted_fields[0].toString() + ": " + formatted_fields[1].toString());
                     }
                 }
             }
