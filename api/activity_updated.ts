@@ -12,9 +12,18 @@ export default async function handler(req, res) {
         return;
     }
 
+    if ('hub.challenge' in req.query) {
+        // Callback validation
+        var response = {};
+        response['hub.challenge'] = req.query['hub.challenge'];
+
+        res.status(200).end(JSON.stringify(response));
+        return;
+    }
+
     const { aspect_type, object_type, owner_id, object_id } = req.body;
 
-    const payload = {};    
+    const payload = {};
 
     if (object_type == "activity" && (aspect_type == "create" || aspect_type == "delete")) {
         payload[aspect_type == "create" ? "create" : "delete"] = object_id;
@@ -26,7 +35,7 @@ export default async function handler(req, res) {
             },
             method: "POST",
             body: JSON.stringify(payload),
-        });    
+        });
     }
 
     res.status(200).end(JSON.stringify("OK"));
