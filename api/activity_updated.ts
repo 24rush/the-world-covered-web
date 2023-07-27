@@ -20,7 +20,7 @@ export default async function handler(req, res) {
         payload[aspect_type == "create" ? "create" : "delete"] = object_id;
         payload["athlete_id"] = owner_id;
 
-        fetch(process.env.GCP_SRV_THE_WORLD_COVERED_URL + "/on_activity_updated", {
+        await fetch(process.env.GCP_SRV_THE_WORLD_COVERED_URL + "/on_activity_updated", {
             headers: {
                 "Content-Type": "application/json",
             },
