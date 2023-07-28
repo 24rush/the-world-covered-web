@@ -639,7 +639,7 @@ async function onSearchRequest() {
 
     setTimeout(count_down);
 
-    let determine_db_result_type = (result: any): GPTReponseType => {        
+    let determine_db_result_type = (result: any): GPTReponseType => {
         // We got an empty array of objects
         if ('length' in result && result.length == 0)
             return GPTReponseType.Empty;
@@ -733,63 +733,24 @@ async function onSearchRequest() {
         </div>
 
         <div class="queries-bar btn-group mb-3" role="group">
-            <div class="query-pill">
-                <input type="radio" :value="RouteTypes.Unique" v-model="current_route_type"
-                    :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btn_unique_routes"
+            <div class="query-pill" v-for="route_type in RouteTypes">
+                <input type="radio" :value=route_type v-model="current_route_type"
+                    :disabled="is_downloading_routes" class="btn-check" name="btnradio" :id="`btn_query_` + route_type.replace(' ', '_')"
                     autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
-                    v-bind:onClick="() => onRouteTypeRequested('unique_routes')" for="btn_unique_routes">all routes</label>
-            </div>
+                    v-bind:onClick="() => onRouteTypeRequested(route_type)" :for="`btn_query_` + route_type.replace(' ', '_')">{{ route_type }}</label>
+            </div>        
 
             <div class="query-pill">
-                <input type="radio" :value="RouteTypes.MostRidden" v-model="current_route_type"
-                    :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio_most"
+                <input type="radio" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio7"
                     autocomplete="off">
                 <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
                     v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
-                    v-bind:onClick="() => onRouteTypeRequested('most_ridden')" for="btnradio_most">most ridden</label>
-            </div>
-
-            <div class="query-pill">
-                <input type="radio" :value="RouteTypes.Epic" v-model="current_route_type" :disabled="is_downloading_routes"
-                    class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
-                <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
-                    v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
-                    v-bind:onClick="() => onRouteTypeRequested('epic_rides')" for="btnradio2">epic rides</label>
-            </div>
-            <div class="query-pill">
-                <input type="radio" :value="RouteTypes.Abroad" v-model="current_route_type"
-                    :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio4" autocomplete="off">
-                <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
-                    v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
-                    v-bind:onClick="() => onRouteTypeRequested('abroad')" for="btnradio4">abroad</label>
-            </div>
-
-            <div class="query-pill">
-                <input type="radio" :value="RouteTypes.Descents" v-model="current_route_type"
-                    :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio3" autocomplete="off">
-                <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
-                    v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
-                    v-bind:onClick="() => onRouteTypeRequested('best_descents')" for="btnradio3">descents</label>
-            </div>
-
-            <div class="query-pill">
-                <input type="radio" :value="RouteTypes.Ascents" v-model="current_route_type"
-                    :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio5" autocomplete="off">
-                <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
-                    v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
-                    v-bind:onClick="() => onRouteTypeRequested('best_ascents')" for="btnradio5">climbs</label>
-            </div>
-
-            <div class="query-pill">
-                <input type="radio" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio6"
-                    autocomplete="off">
-                <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
-                    v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
-                    v-bind:onClick="() => onRouteTypeRequested('statistics')" for="btnradio6">statistics</label>
+                    v-bind:onClick="() => onRouteTypeRequested('statistics')" for="btnradio7">statistics</label>
             </div>
         </div>
+        
         <Segments v-bind:activity="selected_activity" v-on:segmentEffortsRequested="onSegmentEffortsRequested"
             v-on:segment-selected="onSegmentSelected" v-on:segment-unselected="onSegmentUnselected">
         </Segments>

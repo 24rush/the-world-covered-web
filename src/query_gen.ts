@@ -1,10 +1,11 @@
 export enum RouteTypes {
-    Unique = "unique_routes",
-    MostRidden = "most_ridden",
-    Epic = "epic_rides",
+    Unique = "all routes",
+    MostRidden = "most ridden",
+    Epic = "epic rides",
     Abroad = "abroad",
-    Descents = "best_descents",
-    Ascents = "best_ascents"
+    Descents = "descents",
+    Ascents = "climbs",
+    Latest = "latest"
 };
 
 export default class QueryGen {
@@ -114,6 +115,10 @@ export default class QueryGen {
                 this.current_query = this.act_epic_rides()
                 this.apply_limits(this.current_query);
                 break;
+            case RouteTypes.Latest:
+                this.current_query = this.act_latest();
+                this.apply_limits(this.current_query);
+                break;
             case RouteTypes.Ascents:
                 this.current_query = this.routes_gradients_over(7)
                 this.apply_limits(this.current_query);
@@ -123,10 +128,10 @@ export default class QueryGen {
                 this.apply_limits(this.current_query);
                 break;
             case RouteTypes.Unique:
-                this.current_query = this.unique_routes(rad_start, rad_end);
+                this.current_query = this.routes_unique(rad_start, rad_end);
                 break;
             case RouteTypes.MostRidden:
-                this.current_query = this.most_ridden();
+                this.current_query = this.routes_most_ridden();
                 this.apply_limits(this.current_query);
                 break;
             default:
@@ -192,7 +197,7 @@ export default class QueryGen {
         return this.current_query;
     }
 
-    public unique_routes(radius_start?: number, radius_end?: number): any {
+    public routes_unique(radius_start?: number, radius_end?: number): any {
         if (radius_start == undefined || radius_end == undefined)
             return;
 
@@ -204,7 +209,7 @@ export default class QueryGen {
         return this.current_query;
     }
 
-    public most_ridden(): any {
+    public routes_most_ridden(): any {
         this.current_query = [{ $match: { "athlete_id": this.ath_id } }, {
             $addFields: { act_count: { $size: { "$ifNull": ["$activities", []] } } }
         },
@@ -213,6 +218,14 @@ export default class QueryGen {
         },
         {
             $sort: { "act_count": -1 }
+        }];
+        return this.current_query;
+    }
+
+    public act_latest(): any {
+        this.current_query = [{ $match: { "athlete.id": this.ath_id } },
+        {
+            $sort: { "start_date_local_date": -1 }
         }];
         return this.current_query;
     }

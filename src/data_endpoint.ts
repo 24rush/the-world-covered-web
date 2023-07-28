@@ -14,7 +14,7 @@ interface DataRetriever {
 }
 
 class LocalServer implements DataRetriever {
-    url: string = "http://localhost:8000";
+    url: string = "http://localhost:8080";
 
     get_data<T>(path: string): Promise<T> {
         return fetch(this.url + path, {
@@ -43,7 +43,7 @@ class LocalServer implements DataRetriever {
     }
 
     async query_routes(query: any): Promise<Route[]> {
-        return this.post_data('/query_routes/', query);
+        return this.post_data('/query_routes', query);
     }
 
     async query_activities(query: any): Promise<Activity[]> {

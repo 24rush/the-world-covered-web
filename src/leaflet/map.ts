@@ -46,7 +46,7 @@ export default class LeafletMap {
     last_centered_on_item_id: number = 0;
 
     constructor(elem_id: string) {
-        this.map = L.map(elem_id, { zoomControl: false });
+        this.map = L.map(elem_id, { zoomControl: false, zoomSnap: 0.5 });
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
