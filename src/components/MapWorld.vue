@@ -24,6 +24,9 @@ var metadata = reactive<ActivityMetaData[]>([]);
 var statistics = ref<HistoryStatistics>(new HistoryStatistics());
 var gpt_chart_data = ref<any>(null);
 
+// First data retrieval indicator
+var is_loading_page = ref(true);
+
 // Toggles the appearance of the Statistics component
 var is_on_statistics_page = ref(false);
 
@@ -436,10 +439,11 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                     map.center_view(metadata_for_route._id);
                     first_item = false;
                 }
+                is_loading_page.value = false;
             }, (noItems: number) => {
                 // Unique routes have no limit as we are looking for new routes as the map moves
                 has_more_data.value = type == RouteTypes.Unique ? false : (noItems == query_gen.get_results_per_page());
-                is_downloading_routes.value = false;
+                is_downloading_routes.value = false;                
             });
             break;
         }
@@ -448,9 +452,10 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
             datahandler.execute(type, query, (metadata_gradient: ActivityMetaData) => {
                 store_metadata(metadata_gradient);
                 map.register_polyline(metadata_gradient._id, metadata_gradient.polyline);
+                is_loading_page.value = false;
             }, (noItems: number) => {
                 has_more_data.value = noItems == query_gen.get_results_per_page();
-                is_downloading_routes.value = false;
+                is_downloading_routes.value = false;                
 
                 highlight_new_item_received();
             });
@@ -467,6 +472,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
             }
 
             is_downloading_routes.value = false;
+            is_loading_page.value = false;
             break;
         }
 
@@ -480,9 +486,10 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                     return;
 
                 on_new_activity_retrieved(activityMetaData);
+                is_loading_page.value = false;
             }, (noItems: number) => {
                 has_more_data.value = noItems == query_gen.get_results_per_page();
-                is_downloading_routes.value = false;
+                is_downloading_routes.value = false;                
 
                 highlight_new_item_received();
             });
@@ -723,12 +730,17 @@ async function onSearchRequest() {
 </script>
 <template>
     <div id="map" style="z-index: 0;"> </div>
+    <div v-if="is_loading_page" class="d-flex justify-content-center loading-screen" style="flex-direction: column;">
+        <div class="spinner-border" role="status" style="margin: auto;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <span style="margin:auto">Warming up the horses</span>
+    </div>
 
     <ActivitiesList class="absolute" v-bind:activities="metadata" v-bind:has_more_data="has_more_data"
         v-bind:hovered_id="hovered_id" v-bind:selected_id="selected_activity._id" v-on:selectedActivity="onActivitySelected"
         v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered"
-        v-on:settingsClicked="onSettingsClicked"
-        v-on:on-next-page-requested="onNextPageRequested">
+        v-on:settingsClicked="onSettingsClicked" v-on:on-next-page-requested="onNextPageRequested">
     </ActivitiesList>
 
     <div class="absolute menu-bar" style="margin-top: 4em; display: flex; flex-wrap: wrap; height: 200px;">
@@ -744,14 +756,15 @@ async function onSearchRequest() {
         </div>
 
         <div class="queries-bar btn-group mb-2" role="group">
-            <div id="queriesCarousel" class="carousel segment-carousel slide">                
-                <div class="carousel-inner" style="width: 85%; margin: auto;background-color: white;">                    
-                    <div class="d-flex accordion accordion-flush accordion-queries">                        
+            <div id="queriesCarousel" class="carousel segment-carousel slide">
+                <div class="carousel-inner" style="width: 85%; margin: auto;background-color: white;">
+                    <div class="d-flex accordion accordion-flush accordion-queries">
                         <div class="accordion-item accordion-queries-item">
                             <span class="accordion-header" id="header_quick_queries">
-                                <button class="accordion-button" style="padding-left: 0.5em;" :class="{ 'collapsed': !quick_queries_opened }"
-                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapse_quick_queries"
-                                    aria-expanded="true" v-on:click="quick_queries_opened = !quick_queries_opened"
+                                <button class="accordion-button" style="padding-left: 0.5em;"
+                                    :class="{ 'collapsed': !quick_queries_opened }" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#collapse_quick_queries" aria-expanded="true"
+                                    v-on:click="quick_queries_opened = !quick_queries_opened"
                                     aria-controls="collapse_quick_queries">
                                     <span style="white-space: nowrap; padding-right: 0.5em;">
                                         {{ current_route_type }}
@@ -768,7 +781,7 @@ async function onSearchRequest() {
                                     :class="{ 'active': current_route_type == route_type }"
                                     v-bind:onClick="() => { onRouteTypeRequested(route_type); quick_queries_opened = !quick_queries_opened }">
                                     <span>{{ route_type }}</span>
-                                </li>                     
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -782,8 +795,9 @@ async function onSearchRequest() {
             </div>
         </div>
 
-        <Segments v-if="showSegments" v-bind:activity="selected_activity" v-on:segmentEffortsRequested="onSegmentEffortsRequested"
-            v-on:segment-selected="onSegmentSelected" v-on:segment-unselected="onSegmentUnselected">
+        <Segments v-if="showSegments" v-bind:activity="selected_activity"
+            v-on:segmentEffortsRequested="onSegmentEffortsRequested" v-on:segment-selected="onSegmentSelected"
+            v-on:segment-unselected="onSegmentUnselected">
         </Segments>
 
         <Gradients v-bind:route="selected_activity" v-on:on-next-gradient="onNextGradient"
@@ -843,7 +857,8 @@ async function onSearchRequest() {
                     <p>PS: Units of parameters should be meters or seconds and passed as such as OpenAI doesn't seem to do a
                         pretty good job at conversions.</p>
                 </div>
-                <button type="button" class="btn-close me-2 m-auto" style="opacity: 1;" data-bs-dismiss="toast" aria-label="Close"></button>
+                <button type="button" class="btn-close me-2 m-auto" style="opacity: 1;" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
 
             </div>
         </div>
@@ -855,6 +870,18 @@ async function onSearchRequest() {
 #map {
     width: 100%;
     height: 100vh;
+}
+
+.loading-screen {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #ffffff94;
+    width: 60%;
+    z-index: 5;
+    padding: 2em;
+    border-radius: 20px;
 }
 
 .buttons-bar label:hover {
