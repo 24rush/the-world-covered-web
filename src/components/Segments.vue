@@ -232,50 +232,8 @@ function min_effort(series: EffortSeries): EffortSeriesData {
     color: black
 }
 
-.btn-carousel {
-    opacity: 1;
-    width: 8%;
-    background-color: white;
-}
-
-.btn-carousel-left {
-    border-top-left-radius: 50rem;
-    border-bottom-left-radius: 50rem;
-}
-
-.btn-carousel-right {
-    border-top-right-radius: 50rem;
-    border-bottom-right-radius: 50rem;
-}
-
-.accordion-item:hover {
-    border-width: 0px 3px 0px 0px !important;
-    border-color: var(--bs-blue) !important;
-}
-
-.accordion-button:after {
-    order: -1;
-    margin-left: 0;
-    margin-right: 0.5em;
-}
-
-.accordion-button {
-    font-size: inherit;
-    padding: 2px 0px;
-}
-
-.accordion-body {
-    padding: 2px 0px;
-}
-
-.segment-carousel {
-    width: 100%;
-
-    margin-left: auto;
-    margin-right: auto;
-}
-
 .carousel-item {
     transition: transform .4s ease-in-out !important;
 }
+
 </style>

@@ -4,6 +4,7 @@ import cycling from '@/icons/cycling.vue';
 import hiking from '@/icons/hiking.vue';
 import strava from '@/icons/strava.vue';
 import { ActivityMetaData } from '@/data_types/metadata';
+import { computed } from 'vue';
 
 const emit = defineEmits(['selectedActivity'])
 
@@ -21,6 +22,21 @@ const props = defineProps({
         required: true
     },
     selected_id: Number,
+    filter_type: String,
+});
+
+const shouldShow = computed(() => {
+    let shouldShow = true;
+    let filter_tokens = props.filter_type?.split('|');
+
+    filter_tokens?.forEach(token => {
+        if (token && props.activityMeta.type.toLowerCase().includes(token)) {
+            shouldShow = false;
+        }
+
+    });
+
+    return shouldShow;
 });
 
 function country_formatter(country: String): String {
@@ -41,7 +57,7 @@ function country_formatter(country: String): String {
 </script>
 
 <template>
-    <div class="activity_container list-group-item list-group-item-action"
+    <div v-if="shouldShow" class="activity_container-mobile list-group-item list-group-item-action"
         :class="{ 'list-group-item-selected-mobile': selected_id === activityMeta._id }" :key="activityMeta._id"
         v-on:mousedown="emit('selectedActivity', activityMeta._id)">
 
@@ -81,6 +97,13 @@ function country_formatter(country: String): String {
 </template>
 
 <style scoped>
+
+.activity_container-mobile {
+    border-radius: 50px !important;
+    margin-bottom: 0.25em;
+    margin-top: 0.7em;
+    max-width: 75px;
+}
 .stats-item {
     font-weight: 300;
 }

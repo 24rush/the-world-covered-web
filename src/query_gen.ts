@@ -1,11 +1,12 @@
 export enum RouteTypes {
     Unique = "all routes",
+    Latest = "latest",
     MostRidden = "most ridden",
     Epic = "epic rides",
     Abroad = "abroad",
     Descents = "descents",
-    Ascents = "climbs",
-    Latest = "latest"
+    Ascents = "climbs",    
+    Statistics = "statistics"
 };
 
 export default class QueryGen {

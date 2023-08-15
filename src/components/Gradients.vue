@@ -3,7 +3,7 @@ import gradient from '@/icons/gradient.vue';
 import { reactive, onMounted, ref } from 'vue';
 import Strava from '@/icons/strava.vue';
 import { ActivityMetaData } from '@/data_types/metadata';
-import {Formatters} from '@/components/formatters'
+import { Formatters } from '@/components/formatters'
 
 const emit = defineEmits(['onNextGradient', 'onPreviousGradient'])
 
@@ -105,7 +105,7 @@ onMounted(() => {
                             </button>
                         </span>
                         <div v-bind:id="'collapse' + gradient.id.toString()" class="accordion-collapse hide collapse"
-                        :class="{'show': accordion_open, 'hide': !accordion_open}"
+                            :class="{ 'show': accordion_open, 'hide': !accordion_open }"
                             v-bind:aria-labelledby="'header' + gradient.id.toString()">
                             <div style="padding-left: 1.8em; padding-top: 0.7em;">
                                 <span style="padding-left: 0.2em;"><a class="strava_logo"
@@ -138,56 +138,3 @@ onMounted(() => {
         </button>
     </div>
 </template>
-
-<style>
-.bicons {
-    color: black
-}
-
-.btn-carousel {
-    opacity: 1;
-    width: 8%;
-    background-color: white;
-}
-
-.btn-carousel-left {
-    border-top-left-radius: 50rem;
-    border-bottom-left-radius: 50rem;
-}
-
-.btn-carousel-right {
-    border-top-right-radius: 50rem;
-    border-bottom-right-radius: 50rem;
-}
-
-.accordion-item:hover {
-    border-width: 0px 3px 0px 0px !important;
-    border-color: var(--bs-blue) !important;
-}
-
-.accordion-button:after {
-    order: -1;
-    margin-left: 0;
-    margin-right: 0.5em;
-}
-
-.accordion-button {
-    font-size: inherit;
-    padding: 2px 0px;
-}
-
-.accordion-body {
-    padding: 2px 0px;
-}
-
-.segment-carousel {
-    width: 100%;
-
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.carousel-item {
-    transition: transform .4s ease-in-out !important;
-}
-</style>

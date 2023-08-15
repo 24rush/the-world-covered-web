@@ -41,6 +41,9 @@ var selected_activity = ref<ActivityMetaData>(new ActivityMetaData());
 var hovered_id = ref(0);
 var selected_seg_id = 0;
 
+// Shows/hides the Segments component
+var showSegments = ref(false);
+
 var map: LeafletMap;
 var radius_end: number = 0;
 var radius_start: number = 0;
@@ -59,6 +62,7 @@ var current_page = 0;
 var current_route_type = ref("");
 var has_more_data = ref(true);
 var is_downloading_routes = ref(false);
+var quick_queries_opened = ref(false);
 
 // Bucharest
 var capitalCityLocation = new LatLng(44.45, 26.196306);
@@ -313,6 +317,12 @@ function onSegmentUnselected(seg_id: DocumentId) {
     }
 }
 
+function onSettingsClicked(resource_id: DocumentId) {
+    if (resource_id == selected_activity.value._id) {
+        showSegments.value = !showSegments.value;
+    }
+}
+
 function onNextGradient(gradient_id: number) {
     let curr_gradient_index = metadata.findIndex(meta => meta._id == gradient_id);
 
@@ -446,7 +456,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
             });
             break;
         }
-        case "statistics": {
+        case RouteTypes.Statistics: {
             is_on_statistics_page.value = true;
 
             if (!statistics.value.stats.length) {
@@ -717,6 +727,7 @@ async function onSearchRequest() {
     <ActivitiesList class="absolute" v-bind:activities="metadata" v-bind:has_more_data="has_more_data"
         v-bind:hovered_id="hovered_id" v-bind:selected_id="selected_activity._id" v-on:selectedActivity="onActivitySelected"
         v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered"
+        v-on:settingsClicked="onSettingsClicked"
         v-on:on-next-page-requested="onNextPageRequested">
     </ActivitiesList>
 
@@ -732,26 +743,46 @@ async function onSearchRequest() {
                 style="margin-left: 6px; align-self: center; font-weight: 600;">?</span>
         </div>
 
-        <div class="queries-bar btn-group mb-3" role="group">
-            <div class="query-pill" v-for="route_type in RouteTypes">
-                <input type="radio" :value=route_type v-model="current_route_type"
-                    :disabled="is_downloading_routes" class="btn-check" name="btnradio" :id="`btn_query_` + route_type.replace(' ', '_')"
-                    autocomplete="off">
-                <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
-                    v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
-                    v-bind:onClick="() => onRouteTypeRequested(route_type)" :for="`btn_query_` + route_type.replace(' ', '_')">{{ route_type }}</label>
-            </div>        
-
-            <div class="query-pill">
-                <input type="radio" :disabled="is_downloading_routes" class="btn-check" name="btnradio" id="btnradio7"
-                    autocomplete="off">
-                <label class="btn btn-light buttons-bar-btn rounded-pill query-label"
-                    v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
-                    v-bind:onClick="() => onRouteTypeRequested('statistics')" for="btnradio7">statistics</label>
+        <div class="queries-bar btn-group mb-2" role="group">
+            <div id="queriesCarousel" class="carousel segment-carousel slide">                
+                <div class="carousel-inner" style="width: 85%; margin: auto;background-color: white;">                    
+                    <div class="d-flex accordion accordion-flush accordion-queries">                        
+                        <div class="accordion-item accordion-queries-item">
+                            <span class="accordion-header" id="header_quick_queries">
+                                <button class="accordion-button" style="padding-left: 0.5em;" :class="{ 'collapsed': !quick_queries_opened }"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapse_quick_queries"
+                                    aria-expanded="true" v-on:click="quick_queries_opened = !quick_queries_opened"
+                                    aria-controls="collapse_quick_queries">
+                                    <span style="white-space: nowrap; padding-right: 0.5em;">
+                                        {{ current_route_type }}
+                                    </span>
+                                </button>
+                            </span>
+                            <ul id="collapse_quick_queries" style="margin-top: 0.5em; align-items: center;"
+                                class="list-group list-group-flush accordion-collapse collapse"
+                                :class="{ 'show': quick_queries_opened, 'hide': !quick_queries_opened }"
+                                aria-labelledby="header_quick_queries">
+                                <li v-for="route_type in RouteTypes"
+                                    class="list-group-item accordion-body accordion-queries-body"
+                                    v-bind:class="{ 'force_btn_unselect': is_in_search_context }"
+                                    :class="{ 'active': current_route_type == route_type }"
+                                    v-bind:onClick="() => { onRouteTypeRequested(route_type); quick_queries_opened = !quick_queries_opened }">
+                                    <span>{{ route_type }}</span>
+                                </li>                     
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <button class="carousel-control-prev btn-carousel btn-carousel-left" type="button"
+                    data-bs-target="#segmentCarousel" data-bs-slide="prev">
+                </button>
+                <button class="carousel-control-next btn-carousel btn-carousel-right" type="button"
+                    data-bs-target="#segmentCarousel" data-bs-slide="next">
+                </button>
             </div>
         </div>
-        
-        <Segments v-bind:activity="selected_activity" v-on:segmentEffortsRequested="onSegmentEffortsRequested"
+
+        <Segments v-if="showSegments" v-bind:activity="selected_activity" v-on:segmentEffortsRequested="onSegmentEffortsRequested"
             v-on:segment-selected="onSegmentSelected" v-on:segment-unselected="onSegmentUnselected">
         </Segments>
 
@@ -812,7 +843,7 @@ async function onSearchRequest() {
                     <p>PS: Units of parameters should be meters or seconds and passed as such as OpenAI doesn't seem to do a
                         pretty good job at conversions.</p>
                 </div>
-                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                <button type="button" class="btn-close me-2 m-auto" style="opacity: 1;" data-bs-dismiss="toast" aria-label="Close"></button>
 
             </div>
         </div>
@@ -840,7 +871,7 @@ async function onSearchRequest() {
 .menu-bar {
     width: 90%;
 
-    z-index: 1;
+    z-index: 0;
     top: 4em;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -881,6 +912,72 @@ async function onSearchRequest() {
 
 .force_btn_unselect {
     background-color: var(--bs-btn-bg) !important;
+}
+
+.segment-carousel {
+    width: 100%;
+
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.accordion-queries-item {
+    width: 100%;
+    padding: 0.25em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+}
+
+.accordion-queries {
+    border-top-left-radius: 50rem !important;
+    border-bottom-left-radius: 50rem !important;
+    border-top-right-radius: 50rem !important;
+    border-bottom-right-radius: 50rem !important;
+}
+
+.accordion-queries-body {
+    padding: 1em !important;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.accordion-item:hover {
+    border-width: 0px 3px 0px 0px !important;
+    border-color: var(--bs-blue) !important;
+}
+
+.accordion-button:after {
+    order: -1;
+    margin-left: 0;
+    margin-right: 0.5em;
+}
+
+.accordion-button {
+    font-size: inherit;
+    padding: 2px 0px;
+}
+
+.accordion-body {
+    padding: 2px 0px;
+}
+
+.btn-carousel {
+    opacity: 1;
+    width: 8%;
+    background-color: white;
+}
+
+.btn-carousel-left {
+    border-top-left-radius: 50rem;
+    border-bottom-left-radius: 50rem;
+}
+
+.btn-carousel-right {
+    border-top-right-radius: 50rem;
+    border-bottom-right-radius: 50rem;
 }
 
 @media (min-width: 480px) {

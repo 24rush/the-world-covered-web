@@ -7,7 +7,7 @@ import Cycling from '@/icons/cycling.vue';
 import Running from '@/icons/running.vue';
 import { computed, ref } from 'vue';
 
-const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity', 'onNextPageRequested'])
+const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity', 'onNextPageRequested', 'settingsClicked'])
 
 const props = defineProps({
     activities: Array<ActivityMetaData>,
@@ -31,6 +31,10 @@ function onSelectedActivity(resource_id: DocumentId) {
 
 function onHoveredActivity(resource_id: DocumentId) {
     emit('hoveredActivity', resource_id);
+}
+
+function onSettingsClicked(resource_id: DocumentId) {
+    emit('settingsClicked', resource_id);
 }
 
 function onUnhoveredActivity(resource_id: DocumentId) {
@@ -85,20 +89,22 @@ function onFilterRuns() {
         </div>
 
         <ul class="list-group scrollable">
-            <div v-if="isMobile()" class="activity_container-mobile" style="cursor: pointer" v-for="activity in activities"
+            <div v-if="isMobile()" style="cursor: pointer" v-for="activity in activities"
                 :key="activity._id">
                 <MiniActivityVue :activity-meta="activity" :id="activity._id" :selected_id="selected_id"
-                    v-on:selected-activity="onSelectedActivity" :count_times="activity.activities.length" />
+                    :filter_type="activity_type_filter" v-on:selected-activity="onSelectedActivity"
+                    :count_times="activity.activities.length" />
             </div>
-            <div v-else class="activity_container" style="cursor: pointer" v-for="activity in activities">
+            <div v-else style="cursor: pointer" v-for="activity in activities">
                 <ActivityVue :activity-meta="activity" :id="activity._id" v-bind:hovered_id="hovered_id"
                     :filter_type="activity_type_filter" :selected_id="selected_id"
                     v-on:selected-activity="onSelectedActivity" v-on:hovered-activity="onHoveredActivity"
-                    v-on:unhovered-activity="onUnhoveredActivity" :count_times="activity.activities.length" />
+                    v-on:settings-clicked="onSettingsClicked" v-on:unhovered-activity="onUnhoveredActivity"
+                    :count_times="activity.activities.length" />
             </div>
 
             <li v-if="has_more_data && (activities?.length)">
-                <div :class="{ 'activity_container-mobile scroll_more_items_container-mobile': isMobile(), 'activity_container scroll_more_items_container': !isMobile() }"
+                <div :class="{ 'scroll_more_items_container-mobile': isMobile(), 'scroll_more_items_container': !isMobile() }"
                     class="list-group-item list-group-item-action d-flex justify-content-center align-items-center scroll_more_items_container"
                     style="margin:auto;" v-on:click="onNextPageRequested">
                     <i class="bi bi-chevron-down scroll_more_items"></i>
@@ -111,23 +117,18 @@ function onFilterRuns() {
 <style>
 .routeList {
     right: 0.5em;
-    top: 14.5em;
+    top: 7.5em;
     width: 100%;
     max-width: 300px;
     height: 72%;
+    z-index: 2;
 }
 
 .routeList-mobile {
     right: 0em !important;
     max-width: 100px !important;
     padding-right: 1em;
-}
-
-.activity_container-mobile {
-    border-radius: 50px !important;
-    margin-bottom: 0.25em;
-    margin-top: 0.7em;
-    max-width: 75px;
+    z-index: 2;
 }
 
 .scrollable {
@@ -150,6 +151,7 @@ function onFilterRuns() {
 .scroll_more_items_container-mobile {
     margin: 0;
     padding: 0.25em !important;
+    border-radius: 50px !important;
     border: none;
     height: 50px;
     width: 50px;

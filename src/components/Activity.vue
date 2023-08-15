@@ -4,11 +4,12 @@ import cycling from '@/icons/cycling.vue';
 import mountain from '@/icons/mountain.vue';
 import strava from '@/icons/strava.vue';
 import hiking from '@/icons/hiking.vue';
+import settings from '@/icons/settings.vue';
 import { ActivityMetaData } from '@/data_types/metadata';
 import { Formatters } from '@/components/formatters'
 import { computed } from '@vue/reactivity';
 
-const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity'])
+const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity', 'settingsClicked'])
 
 const props = defineProps({
     activityMeta: {
@@ -32,11 +33,11 @@ const shouldShow = computed(() => {
     let shouldShow = true;
     let filter_tokens = props.filter_type?.split('|');
 
-    filter_tokens?.forEach(token => {        
+    filter_tokens?.forEach(token => {
         if (token && props.activityMeta.type.toLowerCase().includes(token)) {
-            shouldShow = false;    
+            shouldShow = false;
         }
-    
+
     });
 
     return shouldShow;
@@ -45,20 +46,34 @@ const shouldShow = computed(() => {
 </script>
 
 <template>
-    <div v-if="shouldShow"
-        class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
+    <div v-if="shouldShow" class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
         :class="{ 'list-group-item-hover': hovered_id === activityMeta._id && selected_id == 0, 'list-group-item-selected': selected_id === activityMeta._id }"
+        style="padding-left: 8px;padding-right: 8px;"
         :key="activityMeta._id" v-on:mouseenter="emit('hoveredActivity', activityMeta._id)"
         v-on:mouseleave="emit('unhoveredActivity', activityMeta._id)"
         v-on:mousedown="emit('selectedActivity', activityMeta._id)">
 
         <div style="width: 100%;" v-bind:id="'activity_' + id">
             <div class="d-flex">
-                <div style="max-width: 90%;">
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-right: 0.5em;">
+                    <span class="badge-item" style="vertical-align: top;">
+                        <running v-if="activityMeta.type.toLowerCase().includes('run')" />
+                        <cycling v-if="activityMeta.type.toLowerCase().includes('ride')" />
+                        <hiking v-if="activityMeta.type.toLowerCase().includes('hike')" />
+                    </span>
+                    <span v-if="activityMeta.athlete_count > 1 && count_times <= 1" class="badge bg-primary rounded-pill">{{
+                        activityMeta.athlete_count
+                    }}p</span>
+                    <span v-if="count_times > 1" class="badge bg-primary text-bg-danger rounded-pill">{{ count_times
+                    }}x</span>
+                </div>
+                <div style="max-width: 90%;  margin-right: 0.2em;">
                     <span class="fw-bold" v-if="activityMeta.location_city">{{ activityMeta.location_city
                     }}, </span>
-                    <span class="fw-bold">{{ activityMeta.location_country }}</span>
+                    <span class="fw-bold badge-item">{{ activityMeta.location_country }}</span>
+             
                     <span class="fs-small">{{ Formatters.date_formatter(activityMeta.start_date_local) }}</span>
+
                     <div>
                         <span v-if="activityMeta.description && activityMeta.activities.length <= 1" class="">{{
                             activityMeta.description }}</span>
@@ -75,22 +90,16 @@ const shouldShow = computed(() => {
                             Formatters.pace_formatter(activityMeta.average_speed) }} </span>
                     </div>
                 </div>
-                <div class="ml-auto">
-                    <span class="badge-item"><a class="strava_logo" v-on:mousedown.stop
+                <div class="ml-auto" style="display: flex;flex-direction: column;">
+                    <span class="badge-item" :class="{ 'hoverable_icon': selected_id == activityMeta._id }">
+                        <settings v-on:mousedown="emit('settingsClicked', activityMeta._id)" v-on:mousedown.stop />
+                    </span>
+                    <span class="badge-item"><a class="hoverable_icon" v-on:mousedown.stop
                             v-bind:href="`https://www.strava.com/activities/${activityMeta.master_activity_id}`"
                             target="_blank">
                             <strava />
                         </a></span>
-                    <span class="badge-item" style="vertical-align: top;">
-                        <running v-if="activityMeta.type.toLowerCase().includes('run')" />
-                        <cycling v-if="activityMeta.type.toLowerCase().includes('ride')" />
-                        <hiking v-if="activityMeta.type.toLowerCase().includes('hike')" />
-                    </span>
-                    <span v-if="activityMeta.athlete_count > 1 && count_times <= 1" class="badge bg-primary rounded-pill">{{
-                        activityMeta.athlete_count
-                    }}p</span>
-                    <span v-if="count_times > 1" class="badge bg-primary text-bg-danger rounded-pill">{{ count_times
-                    }}x</span>
+
                 </div>
             </div>
         </div>
@@ -118,7 +127,7 @@ const shouldShow = computed(() => {
     font-size: small;
 }
 
-.strava_logo:hover {
+.hoverable_icon:hover {
     opacity: 0.5;
     background-color: transparent;
 }
