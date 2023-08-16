@@ -464,9 +464,9 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
         case RouteTypes.Statistics: {
             is_on_statistics_page.value = true;
 
-            if (!statistics.value.stats.length) {
+            if (!statistics.value.stats.years_of_sports.length) {
                 datahandler.execute("statistics", undefined, (history_statistic: HistoryStatistics) => {
-                    history_statistic.stats = history_statistic.stats.reverse();
+                    history_statistic.stats.years_of_sports = history_statistic.stats.years_of_sports.reverse();
                     statistics.value = history_statistic;
                 });
             }

@@ -5,7 +5,7 @@ export enum RouteTypes {
     Epic = "epic rides",
     Abroad = "abroad",
     Descents = "descents",
-    Ascents = "climbs",    
+    Ascents = "climbs",
     Statistics = "statistics"
 };
 
@@ -134,9 +134,11 @@ export default class QueryGen {
             case RouteTypes.MostRidden:
                 this.current_query = this.routes_most_ridden();
                 this.apply_limits(this.current_query);
-                break;
+                break;            
             default:
-                console.log("WARNING: Unknown query type " + type);
+                if (type != RouteTypes.Statistics)
+                    console.log("WARNING: Unknown query type " + type);
+                    
                 this.current_page = 0;
                 this.current_type = type;
                 this.current_query = undefined;
