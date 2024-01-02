@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   const { prompt } = req.body;  
 
   const payload = {
-    model: "text-davinci-003",
+    model: "gpt-3.5-turbo-instruct",
     prompt: queryContext + prompt,
     temperature: 0,
     top_p: 1,
