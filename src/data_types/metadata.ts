@@ -29,5 +29,5 @@ export class ActivityMetaData {
     public segment_efforts: ActivityEffort[] = [];
     public gradients: Gradient[] = []; 
     public coords_center: LatLngMeta = new LatLngMeta(0, 0);
-    public coords: L.Polyline | undefined = undefined;
+    public coords: any = undefined;
 }
