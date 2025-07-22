@@ -203,7 +203,7 @@ const twoYAxisChartOptions = reactive(twoYAxisOptions);
                                     { name: 'KM', type: 'area', data: statistics.stats.years_of_sports.map(year => [year.year, Math.ceil(year.sports.filter(sport => sport.type == 'Run')[0].total_km)]) }]">
                             </apexchart>
                         </div>
-                        <div class="apex-chart">
+                        <div class="apex-chart" style="display: none;">
                             <span class="chart_header"><span style="color: #00E396">VO<sub>2</sub>MAX</span></span>
                             <apexchart :options="oneYAxisChartOptions" height="200"
                                 :series="[
@@ -257,7 +257,7 @@ const twoYAxisChartOptions = reactive(twoYAxisOptions);
                     </div>
 
 
-                    <div class="stat_item">
+                    <div class="stat_item" style="display: none;">
                         <div style="display: flex; flex-direction: column;text-align: end;">
                             <a v-bind:href="`https://www.strava.com/activities/${yearStats.best_12min_act_id}`"
                                 target="_blank">

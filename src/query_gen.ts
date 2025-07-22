@@ -228,7 +228,7 @@ export default class QueryGen {
     public act_latest(): any {
         this.current_query = [{ $match: { "athlete.id": this.ath_id } },
         {
-            $sort: { "start_date_local_date": -1 }
+            $sort: { "start_date_local": -1 }
         }];
         return this.current_query;
     }

@@ -27,6 +27,7 @@ export class ActivityMetaData {
     public athlete_count: number = 0;
 
     public segment_efforts: ActivityEffort[] = [];
-    public gradients: Gradient[] = [];
+    public gradients: Gradient[] = []; 
     public coords_center: LatLngMeta = new LatLngMeta(0, 0);
+    public coords: L.Polyline | undefined = undefined;
 }

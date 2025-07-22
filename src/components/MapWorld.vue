@@ -21,6 +21,11 @@ import Statistics from './Statistics.vue';
 var metadata_index = new Map<number, ActivityMetaData>();
 var metadata = reactive<ActivityMetaData[]>([]);
 
+// Filters from ActivitiesList
+var filter_show_rides = true;
+var filter_show_runs = true;
+var filter_show_hikes = true;
+
 var statistics = ref<HistoryStatistics>(new HistoryStatistics());
 var gpt_chart_data = ref<any>(null);
 
@@ -145,7 +150,8 @@ onMounted(async () => {
 
                 datahandler.execute(current_route_type.value, query, (metadata_for_route: ActivityMetaData) => {
                     store_metadata(metadata_for_route);
-                    map.register_polyline(metadata_for_route._id, metadata_for_route.polyline);
+                    map.register_polyline(metadata_for_route._id, metadata_for_route.polyline, is_route_type_visible(metadata_for_route.type),
+                        map.getStyleForSegmentType(metadata_for_route.type));
                 }, () => {
                     // Unique routes have no limit
                     has_more_data.value = false;
@@ -184,7 +190,8 @@ function onActivityUnselected(resource_id: DocumentId) {
 
     selected_activity.value = new ActivityMetaData();
     selected_seg_id = 0;
-    map.show_all();
+
+    show_all_filtered(filter_show_rides, filter_show_runs, filter_show_hikes);
 }
 
 function generate_segment_polylines(activityMetadata: ActivityMetaData) {
@@ -303,10 +310,12 @@ function onSegmentSelected(seg_id: DocumentId) {
 
     if (seg && seg.polyline) {
         selected_seg_id = seg_id;
-        map.register_polyline(seg_id, seg.polyline, {
-            "weight": 5.4,
-            "color": "#FFFF00".toString()
-        }).bringToFront();
+        map.register_polyline(seg_id, seg.polyline,
+            true,
+            {
+                "weight": 5.4,
+                "color": "#FFFF00".toString()
+            }).bringToFront();
     }
 }
 
@@ -324,6 +333,26 @@ function onSettingsClicked(resource_id: DocumentId) {
     if (resource_id == selected_activity.value._id) {
         showSegments.value = !showSegments.value;
     }
+}
+
+function onFilterChange(show_rides: boolean, show_runs: boolean, show_hikes: boolean) {
+    filter_show_rides = show_rides;
+    filter_show_runs = show_runs;
+    filter_show_hikes = show_hikes;
+
+    onActivityUnselected(selected_activity.value._id);
+    show_all_filtered(show_rides, show_runs, show_hikes);
+}
+
+function show_all_filtered(show_rides: boolean, show_runs: boolean, show_hikes: boolean) {
+    metadata.forEach((act) => {
+        if (act.type.includes("Ride"))
+            show_rides ? map.show_only(act._id) : map.hide_only(act._id);
+        if (act.type.includes("Run"))
+            show_runs ? map.show_only(act._id) : map.hide_only(act._id);
+        if (act.type.includes("Hike"))
+            show_hikes ? map.show_only(act._id) : map.hide_only(act._id);
+    });
 }
 
 function onNextGradient(gradient_id: number) {
@@ -371,18 +400,20 @@ function toRad(value: number): number {
 
 function find_activity_closest_to(point: LatLng): ActivityMetaData | undefined {
     let curr_min = 0;
-    let curr_min_act: ActivityMetaData | undefined = undefined;
 
     metadata.forEach((act) => {
+        if (act.coords && act.coords_center.lat == 0 && act.coords_center.lng == 0)
+            act.coords_center = act.coords.getCenter();
+
         let dist = calcCrow(point, act.coords_center);
 
         if (curr_min == 0 || dist < curr_min) {
             curr_min = dist;
-            curr_min_act = act;
+            return act;
         }
     });
 
-    return curr_min_act;
+    return undefined;
 }
 
 function store_metadata(meta: ActivityMetaData) {
@@ -393,14 +424,28 @@ function store_metadata(meta: ActivityMetaData) {
     metadata_index.set(meta._id, meta);
 }
 
+function is_route_type_visible(type: String) {
+    if (type.includes("Ride") && filter_show_rides) return true;
+    if (type.includes("Run") && filter_show_runs) return true;
+    if (type.includes("Hike") && filter_show_hikes) return true;
+
+    return false;
+}
+
 function on_new_activity_retrieved(activityMetadata: ActivityMetaData) {
     activityMetadata.segment_efforts.forEach(se => {
         se.segment.effort_series = reactive([]);
     });
 
     if (activityMetadata.polyline) {
-        let coords = map.register_polyline(activityMetadata.master_activity_id, activityMetadata.polyline);
-        activityMetadata.coords_center = coords.getCenter();
+        let is_route_added_to_map = is_route_type_visible(activityMetadata.type);
+        let coords = map.register_polyline(activityMetadata.master_activity_id, activityMetadata.polyline, is_route_added_to_map,
+            map.getStyleForSegmentType(activityMetadata.type));
+
+        activityMetadata.coords = coords;
+
+        if (is_route_added_to_map)
+            activityMetadata.coords_center = coords.getCenter();
     }
 
     store_metadata(activityMetadata);
@@ -419,9 +464,9 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
 
     let highlight_new_item_received = () => {
         if (metadata.length) {
-            if (current_page == 0)
+            if (current_page == 0 && is_route_type_visible(metadata[0].type))
                 onActivitySelected(metadata[0]._id);
-            else
+            else if (is_route_type_visible(metadata[metadata.length - 1].type))
                 setTimeout(() => { bring_activity_into_view(metadata[metadata.length - 1]._id); });
         }
     }
@@ -434,8 +479,11 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
             let first_item = true;
             datahandler.execute(type, query, (metadata_for_route: ActivityMetaData) => {
                 store_metadata(metadata_for_route);
-                map.register_polyline(metadata_for_route._id, metadata_for_route.polyline);
-                if (first_item) {
+                let is_route_added_to_map = is_route_type_visible(metadata_for_route.type);
+                map.register_polyline(metadata_for_route._id, metadata_for_route.polyline,
+                    is_route_added_to_map,
+                    map.getStyleForSegmentType(metadata_for_route.type));
+                if (first_item && is_route_added_to_map) {
                     map.center_view(metadata_for_route._id);
                     first_item = false;
                 }
@@ -443,7 +491,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
             }, (noItems: number) => {
                 // Unique routes have no limit as we are looking for new routes as the map moves
                 has_more_data.value = type == RouteTypes.Unique ? false : (noItems == query_gen.get_results_per_page());
-                is_downloading_routes.value = false;                
+                is_downloading_routes.value = false;
             });
             break;
         }
@@ -451,11 +499,13 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
         case RouteTypes.Descents: {
             datahandler.execute(type, query, (metadata_gradient: ActivityMetaData) => {
                 store_metadata(metadata_gradient);
-                map.register_polyline(metadata_gradient._id, metadata_gradient.polyline);
+                map.register_polyline(metadata_gradient._id, metadata_gradient.polyline,
+                    true,
+                    map.getStyleForSegmentType(metadata_gradient.type));
                 is_loading_page.value = false;
             }, (noItems: number) => {
                 has_more_data.value = noItems == query_gen.get_results_per_page();
-                is_downloading_routes.value = false;                
+                is_downloading_routes.value = false;
 
                 highlight_new_item_received();
             });
@@ -466,7 +516,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
 
             if (!statistics.value.stats.years_of_sports.length) {
                 datahandler.execute("statistics", undefined, (history_statistic: HistoryStatistics) => {
-                    history_statistic.stats.years_of_sports = history_statistic.stats.years_of_sports.reverse();
+                    history_statistic.stats.years_of_sports = history_statistic.stats.years_of_sports;
                     statistics.value = history_statistic;
                 });
             }
@@ -489,7 +539,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                 is_loading_page.value = false;
             }, (noItems: number) => {
                 has_more_data.value = noItems == query_gen.get_results_per_page();
-                is_downloading_routes.value = false;                
+                is_downloading_routes.value = false;
 
                 highlight_new_item_received();
             });
@@ -740,11 +790,12 @@ async function onSearchRequest() {
     <ActivitiesList class="absolute" v-bind:activities="metadata" v-bind:has_more_data="has_more_data"
         v-bind:hovered_id="hovered_id" v-bind:selected_id="selected_activity._id" v-on:selectedActivity="onActivitySelected"
         v-on:hoveredActivity="onActivityHovered" v-on:unhoveredActivity="onActivityUnhovered"
-        v-on:settingsClicked="onSettingsClicked" v-on:on-next-page-requested="onNextPageRequested">
+        v-on:settingsClicked="onSettingsClicked" v-on:on-next-page-requested="onNextPageRequested"
+        v-on:filterChange="onFilterChange">
     </ActivitiesList>
 
     <div class="absolute menu-bar" style="margin-top: 4em; display: flex; flex-wrap: wrap; height: 200px;">
-        <div class="input-group mb-2 rounded-pill">
+        <div class="input-group mb-2 rounded-pill" style="display: none;">
             <input type="text" v-model="searchQuery" class="form-control" placeholder="Search my activities using AI"
                 @keyup.enter.native="onSearchRequest" aria-describedby="button-addon2" :disabled="is_search_query_ongoing"
                 style="border-top-left-radius: 50px;border-bottom-left-radius: 50px;">
@@ -848,7 +899,7 @@ async function onSearchRequest() {
                     <ul>
                         <li><i>how many rides with friends</i></li>
                         <li><i>which is the longest ride</i></li>
-                        <li><i>number of activities per month in 2023</i></li>
+                        <li><i>number of activities per month in 2025</i></li>
                         <li><i>runs in 2022</i></li>
                         <li><i>kilometers run per month in 2022</i></li>
                         <li><i>rides in The Netherlands</i></li>

@@ -123,7 +123,7 @@ export default class LeafletMap {
         this.last_centered_on_item_id = elem_id;
     }
 
-    public register_polyline(id: number, polyline: string, style?: any): L.Polyline {
+    public register_polyline(id: number, polyline: string, is_visible_on_map: boolean, style?: any): L.Polyline {
         let existing_poly = this.elem_id_to_polyline.get(id);
 
         if (existing_poly) {
@@ -162,8 +162,10 @@ export default class LeafletMap {
                 self.poly_clicked_cbk(id);
         });
 
-        this.elem_id_to_polyline.set(id, new PolylineCtx(gps_points, true));
-        this.addToMap(id, gps_points);
+        this.elem_id_to_polyline.set(id, new PolylineCtx(gps_points, is_visible_on_map));
+        if (is_visible_on_map)
+            this.addToMap(id, gps_points);
+
         gps_points.bringToBack();
 
         return gps_points
@@ -179,15 +181,6 @@ export default class LeafletMap {
 
         this.elem_id_to_polyline.delete(id);
         this.elem_id_to_style.delete(id);
-    }
-
-    public show_only(id: number) {
-        let polyCtx = this.elem_id_to_polyline.get(id);
-
-        if (polyCtx && polyCtx.addedToMap == false) {
-            polyCtx.addedToMap = true;
-            this.addToMap(id, polyCtx.polyline);
-        }
     }
 
     public clear_all() {
@@ -208,6 +201,15 @@ export default class LeafletMap {
         });
     }
 
+    public hide_only(id: number) {
+        let polyCtx = this.elem_id_to_polyline.get(id);
+
+        if (polyCtx && polyCtx.addedToMap) {
+            polyCtx.addedToMap = false;
+            this.removeFromMap(id, polyCtx.polyline);
+        }
+    }
+
     public show_all() {
         this.elem_id_to_polyline.forEach((elem, key) => {
             if (elem.addedToMap == false) {
@@ -215,6 +217,15 @@ export default class LeafletMap {
                 this.addToMap(key, elem.polyline);
             }
         });
+    }
+
+    public show_only(id: number) {
+        let polyCtx = this.elem_id_to_polyline.get(id);
+
+        if (polyCtx && polyCtx.addedToMap == false) {
+            polyCtx.addedToMap = true;
+            this.addToMap(id, polyCtx.polyline);
+        }
     }
 
     public highlight_elem_id(elem_id: number) {
@@ -235,6 +246,27 @@ export default class LeafletMap {
             this.unhighlight_polyline(key, v.polyline);
         });
         this.last_hovered_item_id = 0;
+    }
+    
+    public getStyleForSegmentType(type: String) {
+        if (type.includes("Run")) {
+            return {
+                "weight": Style_Poly_Default_Weight,
+                "color": "#EFFF00".toString()
+            };    
+        }
+
+        if (type.includes("Hike")) {
+            return {
+                "weight": Style_Poly_Default_Weight,
+                "color": "#b2ff66".toString()
+            };    
+        }
+
+        return {
+            "weight": Style_Poly_Default_Weight,
+            "color": "#fc5200".toString()
+        };
     }
 
     private do_with_elem_id(elem_id: number, handler: PolylineHandlerFnc) {
@@ -276,4 +308,35 @@ export default class LeafletMap {
         this.already_in.delete(id);
         polyline.removeFrom(this.map);
     }
+
+    private colorInterpolate(colorA: string, colorB: string, intval: number): string {
+        const rgbA = this.hexToRgb(colorA),
+            rgbB = this.hexToRgb(colorB);
+
+        const colorVal = (prop: string) =>
+            Math.round(rgbA[prop] * (1 - intval) + rgbB[prop] * intval);
+
+        return this.rgbToHex(colorVal('r'), colorVal('g'), colorVal('b'));
+    }
+
+    private rgbToHex(r: number, g: number, b: number): string {
+        return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
+    }
+
+    private hexToRgb(hex: string): any {
+        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    }
+
+    private interpolateOrangeRed(weight?: number): string {
+        if (!weight)
+            return "#fc5200"
+
+        return this.colorInterpolate("#fccc29", "#FF0000", weight);
+    }    
 }

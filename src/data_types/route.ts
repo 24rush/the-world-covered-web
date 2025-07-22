@@ -42,7 +42,8 @@ export class Gradient {
         metadata.elevation_gain = gradient.elevation_gain;
         metadata.average_speed = route.average_speed;
 
-        metadata.coords_center = new LatLngMeta(route.center_coord.y, route.center_coord.x);
+        metadata.coords = undefined;
+        metadata.coords_center = new LatLngMeta(route.center_coord.y, route.center_coord.x);        
         metadata.count_times = route.activities.length;
 
         gradient.incline = [];
@@ -110,6 +111,8 @@ export class Route {
         metadata.distance = route.distance;
         metadata.elevation_gain = route.total_elevation_gain;
         metadata.average_speed = route.average_speed;
+
+        metadata.coords = undefined;
         metadata.coords_center = new LatLngMeta(route.center_coord.y, route.center_coord.x);
 
         metadata.count_times = route.activities.length;

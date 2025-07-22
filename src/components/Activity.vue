@@ -90,16 +90,16 @@ const shouldShow = computed(() => {
                             Formatters.pace_formatter(activityMeta.average_speed) }} </span>
                     </div>
                 </div>
-                <div class="ml-auto" style="display: flex;flex-direction: column;">
-                    <span class="badge-item" :class="{ 'hoverable_icon': selected_id == activityMeta._id }">
-                        <settings v-on:mousedown="emit('settingsClicked', activityMeta._id)" v-on:mousedown.stop />
-                    </span>
+                <div class="ml-auto" style="display: flex;flex-direction: column;">           
                     <span class="badge-item"><a class="hoverable_icon" v-on:mousedown.stop
                             v-bind:href="`https://www.strava.com/activities/${activityMeta.master_activity_id}`"
                             target="_blank">
                             <strava />
-                        </a></span>
-
+                        </a>
+                    </span>
+                    <span class="badge-item" v-if="selected_id == activityMeta._id" :class="{ 'hoverable_icon': selected_id == activityMeta._id }">
+                        <settings v-on:mousedown="emit('settingsClicked', activityMeta._id)" v-on:mousedown.stop />
+                    </span>
                 </div>
             </div>
         </div>

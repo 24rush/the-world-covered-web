@@ -103,8 +103,17 @@ export class Activity {
         metadata.count_times = 1;
     
         // To be filled later when master activity is retrieved    
+        metadata.coords = undefined;
         metadata.coords_center = new LatLngMeta(0, 0);
     
+        if (!metadata.location_city && metadata.segment_efforts.length > 0) {
+            metadata.location_city = metadata.segment_efforts[0].segment.city;
+        }
+            
+        if (!metadata.location_country && metadata.segment_efforts.length > 0) {
+            metadata.location_country = metadata.segment_efforts[0].segment.country;
+        }
+
         return metadata;
     }
 }

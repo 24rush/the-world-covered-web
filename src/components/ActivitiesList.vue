@@ -5,9 +5,11 @@ import type { DocumentId } from '@/data_types/activity';
 import type { ActivityMetaData } from '@/data_types/metadata';
 import Cycling from '@/icons/cycling.vue';
 import Running from '@/icons/running.vue';
+import Hiking from "@/icons/hiking.vue";
+
 import { computed, ref } from 'vue';
 
-const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity', 'onNextPageRequested', 'settingsClicked'])
+const emit = defineEmits(['selectedActivity', 'hoveredActivity', 'unhoveredActivity', 'onNextPageRequested', 'settingsClicked', 'filterChange'])
 
 const props = defineProps({
     activities: Array<ActivityMetaData>,
@@ -20,6 +22,7 @@ var current_page = 0;
 
 var show_rides = ref(true);
 var show_runs = ref(true);
+var show_hikes = ref(true);
 
 function isMobile() {
     return screen.width <= 760;
@@ -46,45 +49,81 @@ function onNextPageRequested() {
     emit('onNextPageRequested', current_page);
 }
 
+function onFilterChange(show_rides: boolean, show_runs: boolean, show_hikes: boolean) {
+    emit('filterChange', show_rides, show_runs, show_hikes);
+}
+
+// Hike filter based on selected activity type
 const activity_type_filter = computed(() => {
-    return (show_rides.value ? "" : "ride") + "|" + (show_runs.value ? "" : "run|hike");
+    let filter = "";
+
+    if (!show_rides.value) filter += "ride";
+    filter += "|";
+    if (!show_runs.value) filter += "run";
+    filter += "|";
+    if (!show_hikes.value) filter += "hike";
+
+    return filter;
 });
 
 const shouldHaveFilter = computed(() => {
-    return props.activities?.find((a) => a.type.toLowerCase().includes('ride')) &&
-        (props.activities?.find((a) => a.type.toLowerCase().includes('run')) || props.activities?.find((a) => a.type.toLowerCase().includes('hike')));
+    return props.activities?.find((a) => a.type.toLowerCase().includes('ride')) ||
+        props.activities?.find((a) => a.type.toLowerCase().includes('run')) || props.activities?.find((a) => a.type.toLowerCase().includes('hike'));
 });
 
+// Filter out activity types, called before the switch of the model
+function isAtLeastOneActivityTypeSelected(runs: boolean, rides: boolean, hikes: boolean) {
+    return runs || rides || hikes;
+}
+
 function onFilterRides() {
-    if (show_rides.value == true && show_runs.value == false) {
-        show_runs.value = true;
+    if (!isAtLeastOneActivityTypeSelected(show_runs.value, !show_rides.value, show_hikes.value)) {
+        show_rides.value = !show_rides.value;
     }
+
+    onFilterChange(!show_rides.value, show_runs.value, show_hikes.value);
 }
 
 function onFilterRuns() {
-    if (show_rides.value == false && show_runs.value == true) {
-        show_rides.value = true;
+    if (!isAtLeastOneActivityTypeSelected(!show_runs.value, show_rides.value, show_hikes.value)) {
+        show_runs.value = !show_runs.value;
     }
+
+    onFilterChange(show_rides.value, !show_runs.value, show_hikes.value);
 }
 
+function onFilterHikes() {
+    if (!isAtLeastOneActivityTypeSelected(show_runs.value, show_rides.value, !show_hikes.value)) {
+        show_hikes.value = !show_hikes.value;
+    }
+  
+    onFilterChange(show_rides.value, show_runs.value, !show_hikes.value);
+}
 
 </script>
 
 <template>
-    <div class="routeList" :class="{ 'routeList-mobile': isMobile() }">
+    <div class="routeList prevent-select" :class="{ 'routeList-mobile': isMobile() }">
         <div v-if="activities?.length && shouldHaveFilter" class="btn-group route_type_buttons"
             :class="{ 'route_type_buttons_mobile': isMobile() }"
             style="display: flex; justify-content: flex-end; border-radius: 50rem;" role="group">
+            
             <input v-model="show_rides" type="checkbox" class="btn-check" id="checkfilterRides" autocomplete="off">
             <label v-on:click="onFilterRides" class="btn btn-light route_type_button route_type_button_left"
                 style="padding-top: 2px;" for="checkfilterRides">
-                <cycling />
+                <cycling fill="#fc5200"/>
             </label>
 
             <input v-model="show_runs" type="checkbox" class="btn-check" id="checkfilterRuns" autocomplete="off">
             <label v-on:click="onFilterRuns" class="btn btn-light route_type_button route_type_button_right"
                 style="padding-top: 2px;" for="checkfilterRuns">
-                <running />
+                <running fill="#EFFF00"/>
+            </label>
+
+            <input v-model="show_hikes" type="checkbox" class="btn-check" id="checkfilterHikes" autocomplete="off">
+            <label v-on:click="onFilterHikes" class="btn btn-light route_type_button route_type_button_right"
+                style="padding-top: 2px;" for="checkfilterHikes">
+                <hiking fill="#b2ff66"/>
             </label>
         </div>
 
@@ -182,4 +221,11 @@ function onFilterRuns() {
     border-top-right-radius: 50rem;
     border-bottom-right-radius: 50rem;
 }
+
+.prevent-select {
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* IE 10 and IE 11 */
+  user-select: none; /* Standard syntax */
+}
+
 </style>
