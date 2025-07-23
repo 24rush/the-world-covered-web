@@ -74,7 +74,7 @@ onMounted(() => {
 
 </script>
 <template>
-    <div v-if="route && route.gradients.length != 0" id="gradientCarousel" class="carousel segment-carousel slide">
+    <div v-if="route && route.gradients.length != 0" id="gradientCarousel" class="carousel segment-carousel slide prevent-select">
         <div class="carousel-inner" style="width: 85%; margin: auto;">
             <div v-for="(gradient, index) in route.gradients" :key="gradient.id" class="carousel-item"
                 v-bind:id="'gradient' + gradient.id" :class="{ 'active': index == 0 }">

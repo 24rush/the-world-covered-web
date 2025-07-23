@@ -68,10 +68,10 @@ const shouldShow = computed(() => {
                     }}x</span>
                 </div>
                 <div style="max-width: 90%;  margin-right: 0.2em;">
-                    <span class="fw-bold" v-if="activityMeta.location_city">{{ activityMeta.location_city
-                    }}, </span>
-                    <span class="fw-bold badge-item">{{ activityMeta.location_country }}</span>
-             
+                    <span class="fw-bold" v-if="activityMeta.location_city">{{ activityMeta.location_city }}, </span>
+                    <span class="fw-bold badge-item" v-if="activityMeta.location_country">{{ activityMeta.location_country }}</span>
+                    <span class="fw-bold" v-if="!activityMeta.location_city && !activityMeta.location_country"> {{activityMeta.type}} </span>
+
                     <span class="fs-small">{{ Formatters.date_formatter(activityMeta.start_date_local) }}</span>
 
                     <div>

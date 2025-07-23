@@ -141,7 +141,7 @@ function min_effort(series: EffortSeries): EffortSeriesData {
 </script>
 <template>
     <div v-if="activity && activity.segment_efforts.length != 0" id="segmentCarousel"
-        class="carousel segment-carousel slide" :ref="(el) => onCarouselLoaded(el)">
+        class="carousel segment-carousel slide prevent-select" :ref="(el) => onCarouselLoaded(el)">
         <div class="carousel-inner" style="width: 85%; margin: auto;">
             <div v-for="(effort, index) in activity.segment_efforts" :key="index" class="carousel-item"
                 v-bind:id="'segment' + effort.segment.id" :class="{ 'active': index == 0 }">

@@ -425,9 +425,9 @@ function store_metadata(meta: ActivityMetaData) {
 }
 
 function is_route_type_visible(type: String) {
-    if (type.includes("Ride") && filter_show_rides) return true;
-    if (type.includes("Run") && filter_show_runs) return true;
-    if (type.includes("Hike") && filter_show_hikes) return true;
+    if (type.toLowerCase().includes("ride") && filter_show_rides) return true;
+    if (type.toLowerCase().includes("run") && filter_show_runs) return true;
+    if (type.toLowerCase().includes("hike") && filter_show_hikes) return true;
 
     return false;
 }
@@ -807,7 +807,7 @@ async function onSearchRequest() {
         </div>
 
         <div class="queries-bar btn-group mb-2" role="group">
-            <div id="queriesCarousel" class="carousel segment-carousel slide">
+            <div id="queriesCarousel" class="carousel segment-carousel slide prevent-select">
                 <div class="carousel-inner" style="width: 85%; margin: auto;background-color: white;">
                     <div class="d-flex accordion accordion-flush accordion-queries">
                         <div class="accordion-item accordion-queries-item">

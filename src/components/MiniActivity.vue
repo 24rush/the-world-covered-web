@@ -40,6 +40,9 @@ const shouldShow = computed(() => {
 });
 
 function country_formatter(country: String): String {
+    if (!country)
+        return "RO";
+
     switch (country.toLowerCase()) {
         case "romania": return "RO"
         case "spain": return "ES"
