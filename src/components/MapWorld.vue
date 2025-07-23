@@ -73,7 +73,7 @@ var is_downloading_routes = ref(false);
 var quick_queries_opened = ref(false);
 
 // Bucharest
-var capitalCityLocation = new LatLng(44.45, 26.196306);
+var capitalCityLocation = new LatLng(45.12619, 25.73496);
 
 onMounted(async () => {
     // Wake up vercel if in production
