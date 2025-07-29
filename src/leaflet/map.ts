@@ -107,7 +107,7 @@ export default class LeafletMap {
     public zoom_to(elem_id: number) {
         this.do_with_elem_id(elem_id, (id, polyline) => {
             this.map.panTo((polyline.getLatLngs() as LatLng[])[0]);
-            this.map.fitBounds(polyline.getBounds());
+            //this.map.fitBounds(polyline.getBounds());
         });
     }
 
@@ -252,11 +252,11 @@ export default class LeafletMap {
         if (type.includes("Run")) {
             return {
                 "weight": Style_Poly_Default_Weight,
-                "color": "#EFFF00".toString()
+                "color": "#2de5d6".toString()
             };    
         }
 
-        if (type.includes("Hike")) {
+        if (type.includes("Hike") || type.includes("Walk")) {
             return {
                 "weight": Style_Poly_Default_Weight,
                 "color": "#b2ff66".toString()

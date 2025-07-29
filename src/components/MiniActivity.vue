@@ -22,6 +22,7 @@ const props = defineProps({
         required: true
     },
     selected_id: Number,
+    hovered_id: Number,
     filter_type: String,
 });
 
@@ -61,61 +62,95 @@ function country_formatter(country: String): String {
 
 <template>
     <div v-if="shouldShow" class="activity_container-mobile list-group-item list-group-item-action"
-        :class="{ 'list-group-item-selected-mobile': selected_id === activityMeta._id }" :key="activityMeta._id"
+        :class="{ 'list-group-item-selected-mobile': selected_id === activityMeta._id,  
+        'list-group-item-hover-mobile': hovered_id === activityMeta._id && selected_id == 0,
+        'list-group-item-hover-mobile-ride': hovered_id === activityMeta._id && selected_id == 0 && activityMeta.type.toLowerCase().includes('ride'),
+        'list-group-item-hover-mobile-run': hovered_id === activityMeta._id && selected_id == 0 && activityMeta.type.toLowerCase().includes('run'),
+        'list-group-item-hover-mobile-hikewalk': hovered_id === activityMeta._id && selected_id == 0 && (activityMeta.type.toLowerCase().includes('hike') || activityMeta.type.toLowerCase().includes('walk')),
+
+        }" :key="activityMeta._id"
         v-on:mousedown="emit('selectedActivity', activityMeta._id)">
 
-        <div class="d-flex justify-content-between align-items-center" style="line-height: 1.2; flex-direction: column;"
+        <div class="d-flex justify-content-between align-items-center" style="flex-direction: column;"
             v-bind:id="'activity_' + id">
-            <span v-if="count_times > 1"
+            <span v-if="count_times > 1 && false"
                 class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark badge-times">{{
                     count_times
                 }}x</span>
 
-            <span v-if="activityMeta.athlete_count > 1 && count_times <= 1"
+            <span v-if="activityMeta.athlete_count > 1 && count_times <= 1 && false"
                 class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark badge-times">{{
                     activityMeta.athlete_count
                 }}p</span>
 
-            <span class="fw-bold">{{ country_formatter(activityMeta.location_country) }}</span>
+            <span class="fw-bold" style="display: none;">{{ country_formatter(activityMeta.location_country) }}</span>
             <div>
-                <span class="stats-item">{{ Math.ceil(activityMeta.distance / 1000) }}km</span>
+                <span class="stats-item" style="padding-right: 0px;">{{ Math.ceil(activityMeta.distance / 1000) }}km</span>
             </div>
-            <span style="vertical-align: top;">
-                <running v-if="activityMeta.type.toLowerCase().includes('run')" />
-                <cycling v-if="activityMeta.type.toLowerCase().includes('ride')" />
-                <hiking v-if="activityMeta.type.toLowerCase().includes('hike')" />
-            </span>
 
-            <span class="position-absolute bottom-0 end-0 badge rounded-pill bg-dark"
-                style="max-width: 24px; margin-right: -1.2em;">
-                <span class=""><a v-on:mousedown.stop
-                        v-bind:href="`https://www.strava.com/activities/${activityMeta.master_activity_id}`"
-                        target="_blank">
-                        <strava style="height: 15px; width: 15px; margin-left: -0.2em;" />
-                    </a></span>
-            </span>
+            <div>
+                <span style="vertical-align: middle;margin-right: 0.5em;">
+                    <running v-if="activityMeta.type.toLowerCase().includes('run')" />
+                    <cycling v-if="activityMeta.type.toLowerCase().includes('ride')" />
+                    <hiking
+                        v-if="activityMeta.type.toLowerCase().includes('hike') || activityMeta.type.toLowerCase().includes('walk')" />
+                </span>
 
+                <span class="badge rounded-pill"
+                    style="max-width: 24px;background-color: #c0e2ff;">
+                    <span class=""><a v-on:mousedown.stop
+                            v-bind:href="`https://www.strava.com/activities/${activityMeta.master_activity_id}`"
+                            target="_blank">
+                            <strava style="height: 15px; width: 15px; margin-left: -0.2em;" />
+                        </a></span>
+                </span>
+            </div>
         </div>
     </div>
 </template>
 
 <style scoped>
-
-.activity_container-mobile {
-    border-radius: 50px !important;
-    margin-bottom: 0.25em;
-    margin-top: 0.7em;
-    max-width: 75px;
+.activity_container-mobile {    
+    padding-left: 0!important;
+    padding-right: 0!important;
+    padding-top: 1px;
+    margin-top: 1px;
+    padding-bottom: 4px;
 }
+
 .stats-item {
     font-weight: 300;
 }
 
 .list-group-item-selected-mobile {
-    border-width: 2px;
+    border-width: 0px 0px 0px 3px;
     border-color: #fd7e148c;
 
+    transform: translateX(0px);
+    transition: transform .2s;
+
     background-color: bisque !important;
+}
+
+.list-group-item-hover-mobile-ride {
+    border-color: var(--color-ride);
+}
+
+.list-group-item-hover-mobile-hikewalk {
+    border-color: var(--color-hikewalk);
+}
+
+.list-group-item-hover-mobile-run {
+    border-color: var(--color-run);
+}
+
+.list-group-item-hover-mobile {    
+    border-width: 0px 0px 0px 3px;
+
+    transform: translateX(0px);
+    transition: transform .2s;
+
+    background-color: aliceblue !important;
 }
 
 .badge-times {

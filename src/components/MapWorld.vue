@@ -121,6 +121,11 @@ onMounted(async () => {
         onActivitySelected(id);
     });
 
+    map.register_map_clicked_cbk(() => {
+        if (selected_activity.value._id != 0)
+            onActivityUnselected(selected_activity.value._id);
+    })
+
     let update_radiuses_from_bounds = (bounds: LatLngBounds): boolean => {
         let dist_from_capital = calcCrow(bounds.getNorthWest(), capitalCityLocation);
 
@@ -140,7 +145,10 @@ onMounted(async () => {
             let closest_act = find_activity_closest_to(new_center);
 
             if (closest_act) {
+                // Scroll activity list and make closest one first in the list
                 bring_activity_into_view(closest_act._id);
+                onActivityUnhovered(hovered_id.value);
+                onActivityHovered(closest_act._id);
             }
         }
 
@@ -183,8 +191,11 @@ function onActivityUnselected(resource_id: DocumentId) {
     if (resource_id == 0)
         return;
 
-    // If Selected then hovered so unhover it
+    // If Selected then hovered so unhover it        
     hover_polyline_of_id(resource_id, false);
+    hover_polyline_of_id(hovered_id.value, false);
+    hovered_id.value = 0;
+
     // Unselect current segment
     onSegmentUnselected(selected_seg_id);
 
@@ -230,13 +241,14 @@ async function onActivitySelected(resource_id: DocumentId) {
 
         map.zoom_to(resource_id);
 
+        hover_polyline_of_id(hovered_id.value, false);
         hovered_id.value = resource_id;
         hover_polyline_of_id(resource_id, true);
 
         // Gradients don't have an associated activity
         if (metadata_for_resource) {
             generate_segment_polylines(metadata_for_resource);
-            highlight_first_segment(metadata_for_resource);
+            //highlight_first_segment(metadata_for_resource);
         }
     };
 
@@ -287,6 +299,8 @@ function highlight_first_segment(activityMetadata: ActivityMetaData) {
 function onActivityHovered(resource_id: DocumentId) {
     if (selected_activity.value._id != 0)
         return;
+
+    onActivityUnhovered(hovered_id.value);
 
     hovered_id.value = resource_id;
     hover_polyline_of_id(resource_id, true);
@@ -350,7 +364,7 @@ function show_all_filtered(show_rides: boolean, show_runs: boolean, show_hikes: 
             show_rides ? map.show_only(act._id) : map.hide_only(act._id);
         if (act.type.includes("Run"))
             show_runs ? map.show_only(act._id) : map.hide_only(act._id);
-        if (act.type.includes("Hike"))
+        if (act.type.includes("Hike") || act.type.includes("Walk"))
             show_hikes ? map.show_only(act._id) : map.hide_only(act._id);
     });
 }
@@ -400,6 +414,7 @@ function toRad(value: number): number {
 
 function find_activity_closest_to(point: LatLng): ActivityMetaData | undefined {
     let curr_min = 0;
+    let closest_act: ActivityMetaData | undefined = undefined;
 
     metadata.forEach((act) => {
         if (act.coords && act.coords_center.lat == 0 && act.coords_center.lng == 0)
@@ -409,11 +424,11 @@ function find_activity_closest_to(point: LatLng): ActivityMetaData | undefined {
 
         if (curr_min == 0 || dist < curr_min) {
             curr_min = dist;
-            return act;
+            closest_act = act;
         }
     });
 
-    return undefined;
+    return closest_act;
 }
 
 function store_metadata(meta: ActivityMetaData) {
@@ -428,6 +443,7 @@ function is_route_type_visible(type: String) {
     if (type.toLowerCase().includes("ride") && filter_show_rides) return true;
     if (type.toLowerCase().includes("run") && filter_show_runs) return true;
     if (type.toLowerCase().includes("hike") && filter_show_hikes) return true;
+    if (type.toLowerCase().includes("walk") && filter_show_hikes) return true;
 
     return false;
 }
@@ -551,6 +567,8 @@ function reset_routes() {
     // Cleares all state data except for statistics which are readonly
     metadata.splice(0)
     metadata_index.clear();
+    radius_start = 0;
+    radius_end = 1;
     map.clear_all();
 
     current_page = 0;
@@ -918,6 +936,12 @@ async function onSearchRequest() {
 </template>
 
 <style>
+:root {
+    --color-ride: #fc5200;
+    --color-hikewalk: #b2ff66;
+    --color-run: #2de5d6;
+}
+
 #map {
     width: 100%;
     height: 100vh;

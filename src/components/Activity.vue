@@ -47,19 +47,26 @@ const shouldShow = computed(() => {
 
 <template>
     <div v-if="shouldShow" class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
-        :class="{ 'list-group-item-hover': hovered_id === activityMeta._id && selected_id == 0, 'list-group-item-selected': selected_id === activityMeta._id }"
-        style="padding-left: 8px;padding-right: 8px;"
-        :key="activityMeta._id" v-on:mouseenter="emit('hoveredActivity', activityMeta._id)"
+        :class="{
+            'list-group-item-hover': hovered_id === activityMeta._id && selected_id == 0,
+            'list-group-item-hover-ride': hovered_id === activityMeta._id && selected_id == 0 && activityMeta.type.toLowerCase().includes('ride'),
+            'list-group-item-hover-run': hovered_id === activityMeta._id && selected_id == 0 && activityMeta.type.toLowerCase().includes('run'),
+            'list-group-item-hover-hikewalk': hovered_id === activityMeta._id && selected_id == 0 && (activityMeta.type.toLowerCase().includes('hike') || activityMeta.type.toLowerCase().includes('walk')),
+            'list-group-item-selected': selected_id === activityMeta._id
+        }" style="padding-left: 8px;padding-right: 8px;" :key="activityMeta._id"
+        v-on:mouseenter="emit('hoveredActivity', activityMeta._id)"
         v-on:mouseleave="emit('unhoveredActivity', activityMeta._id)"
         v-on:mousedown="emit('selectedActivity', activityMeta._id)">
 
         <div style="width: 100%;" v-bind:id="'activity_' + id">
             <div class="d-flex">
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-right: 0.5em;">
+                <div
+                    style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-right: 0.5em;">
                     <span class="badge-item" style="vertical-align: top;">
                         <running v-if="activityMeta.type.toLowerCase().includes('run')" />
                         <cycling v-if="activityMeta.type.toLowerCase().includes('ride')" />
-                        <hiking v-if="activityMeta.type.toLowerCase().includes('hike')" />
+                        <hiking
+                            v-if="activityMeta.type.toLowerCase().includes('hike') || activityMeta.type.toLowerCase().includes('walk')" />
                     </span>
                     <span v-if="activityMeta.athlete_count > 1 && count_times <= 1" class="badge bg-primary rounded-pill">{{
                         activityMeta.athlete_count
@@ -69,8 +76,10 @@ const shouldShow = computed(() => {
                 </div>
                 <div style="max-width: 90%;  margin-right: 0.2em;">
                     <span class="fw-bold" v-if="activityMeta.location_city">{{ activityMeta.location_city }}, </span>
-                    <span class="fw-bold badge-item" v-if="activityMeta.location_country">{{ activityMeta.location_country }}</span>
-                    <span class="fw-bold" v-if="!activityMeta.location_city && !activityMeta.location_country"> {{activityMeta.type}} </span>
+                    <span class="fw-bold badge-item" v-if="activityMeta.location_country">{{ activityMeta.location_country
+                    }}</span>
+                    <span class="fw-bold" v-if="!activityMeta.location_city && !activityMeta.location_country">
+                        {{ activityMeta.type }} </span>
 
                     <span class="fs-small">{{ Formatters.date_formatter(activityMeta.start_date_local) }}</span>
 
@@ -86,18 +95,20 @@ const shouldShow = computed(() => {
                         <span class="stats-item">{{ Math.ceil(activityMeta.elevation_gain) }}m </span>
                         <span class="stats-item" v-if="activityMeta.type === 'Ride'"> {{
                             Formatters.speed_formatter(activityMeta.average_speed) }} </span>
-                        <span class="stats-item" v-if="activityMeta.type === 'Hike' || activityMeta.type === 'Run'">{{
-                            Formatters.pace_formatter(activityMeta.average_speed) }} </span>
+                        <span class="stats-item"
+                            v-if="activityMeta.type === 'Hike' || activityMeta.type === 'Run' || activityMeta.type === 'Walk'">{{
+                                Formatters.pace_formatter(activityMeta.average_speed) }} </span>
                     </div>
                 </div>
-                <div class="ml-auto" style="display: flex;flex-direction: column;">           
+                <div class="ml-auto" style="display: flex;flex-direction: column;">
                     <span class="badge-item"><a class="hoverable_icon" v-on:mousedown.stop
                             v-bind:href="`https://www.strava.com/activities/${activityMeta.master_activity_id}`"
                             target="_blank">
                             <strava />
                         </a>
                     </span>
-                    <span class="badge-item" v-if="selected_id == activityMeta._id" :class="{ 'hoverable_icon': selected_id == activityMeta._id }">
+                    <span class="badge-item" v-if="selected_id == activityMeta._id"
+                        :class="{ 'hoverable_icon': selected_id == activityMeta._id }">
                         <settings v-on:mousedown="emit('settingsClicked', activityMeta._id)" v-on:mousedown.stop />
                     </span>
                 </div>
@@ -132,9 +143,20 @@ const shouldShow = computed(() => {
     background-color: transparent;
 }
 
+.list-group-item-hover-ride {
+    border-color: var(--color-ride);
+}
+
+.list-group-item-hover-hikewalk {
+    border-color: var(--color-hikewalk);
+}
+
+.list-group-item-hover-run {
+    border-color: var(--color-run);
+}
+
 .list-group-item-hover {
     border-width: 0px 0px 0px 5px;
-    border-color: var(--bs-blue);
 
     transform: translateX(0px);
     transition: transform .2s;

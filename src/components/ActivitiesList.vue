@@ -61,7 +61,7 @@ const activity_type_filter = computed(() => {
     filter += "|";
     if (!show_runs.value) filter += "run";
     filter += "|";
-    if (!show_hikes.value) filter += "hike";
+    if (!show_hikes.value) filter += "hike|walk";
 
     return filter;
 });
@@ -109,28 +109,28 @@ function onFilterHikes() {
             style="display: flex; justify-content: flex-end; border-radius: 50rem;" role="group">
             
             <input v-model="show_rides" type="checkbox" class="btn-check" id="checkfilterRides" autocomplete="off">
-            <label v-on:click="onFilterRides" class="btn btn-light route_type_button route_type_button_left"
+            <label v-on:click="onFilterRides" class="btn btn-light route_type_button"
                 style="padding-top: 2px;" for="checkfilterRides">
-                <cycling fill="#fc5200"/>
+                <cycling fill="var(--color-ride)"/>
             </label>
 
             <input v-model="show_runs" type="checkbox" class="btn-check" id="checkfilterRuns" autocomplete="off">
-            <label v-on:click="onFilterRuns" class="btn btn-light route_type_button route_type_button_right"
+            <label v-on:click="onFilterRuns" class="btn btn-light route_type_button"
                 style="padding-top: 2px;" for="checkfilterRuns">
-                <running fill="#EFFF00"/>
+                <running fill="var(--color-run)"/>
             </label>
 
             <input v-model="show_hikes" type="checkbox" class="btn-check" id="checkfilterHikes" autocomplete="off">
-            <label v-on:click="onFilterHikes" class="btn btn-light route_type_button route_type_button_right"
+            <label v-on:click="onFilterHikes" class="btn btn-light route_type_button"
                 style="padding-top: 2px;" for="checkfilterHikes">
-                <hiking fill="#b2ff66"/>
+                <hiking fill="var(--color-hikewalk)"/>
             </label>
         </div>
 
         <ul class="list-group scrollable">
-            <div v-if="isMobile()" style="cursor: pointer" v-for="activity in activities"
+            <div v-if="isMobile()" style="cursor: pointer;margin-right: 2px;" v-for="activity in activities"
                 :key="activity._id">
-                <MiniActivityVue :activity-meta="activity" :id="activity._id" :selected_id="selected_id"
+                <MiniActivityVue :activity-meta="activity" :id="activity._id" :selected_id="selected_id" :hovered_id="hovered_id"
                     :filter_type="activity_type_filter" v-on:selected-activity="onSelectedActivity"
                     :count_times="activity.activities.length" />
             </div>
@@ -164,7 +164,7 @@ function onFilterHikes() {
 }
 
 .routeList-mobile {
-    right: 0em !important;
+    right: -1em !important;
     max-width: 100px !important;
     padding-right: 1em;
     z-index: 2;
@@ -210,16 +210,6 @@ function onFilterHikes() {
 .route_type_button {
     height: 30px;
     padding: 5px;
-}
-
-.route_type_button_left {
-    border-top-left-radius: 50rem;
-    border-bottom-left-radius: 50rem;
-}
-
-.route_type_button_right {
-    border-top-right-radius: 50rem;
-    border-bottom-right-radius: 50rem;
 }
 
 .prevent-select {
