@@ -23,6 +23,7 @@ var current_page = 0;
 var show_rides = ref(true);
 var show_runs = ref(true);
 var show_hikes = ref(true);
+var distance_filter = ref(400);
 
 function isMobile() {
     return screen.width <= 760;
@@ -49,8 +50,8 @@ function onNextPageRequested() {
     emit('onNextPageRequested', current_page);
 }
 
-function onFilterChange(show_rides: boolean, show_runs: boolean, show_hikes: boolean) {
-    emit('filterChange', show_rides, show_runs, show_hikes);
+function onFilterChange(show_rides: boolean, show_runs: boolean, show_hikes: boolean, max_distance: number) {
+    emit('filterChange', show_rides, show_runs, show_hikes, max_distance);
 }
 
 // Hike filter based on selected activity type
@@ -62,6 +63,8 @@ const activity_type_filter = computed(() => {
     if (!show_runs.value) filter += "run";
     filter += "|";
     if (!show_hikes.value) filter += "hike|walk";
+    
+    filter += "|" + distance_filter.value;
 
     return filter;
 });
@@ -81,7 +84,7 @@ function onFilterRides() {
         show_rides.value = !show_rides.value;
     }
 
-    onFilterChange(!show_rides.value, show_runs.value, show_hikes.value);
+    onFilterChange(!show_rides.value, show_runs.value, show_hikes.value, distance_filter.value);
 }
 
 function onFilterRuns() {
@@ -89,15 +92,19 @@ function onFilterRuns() {
         show_runs.value = !show_runs.value;
     }
 
-    onFilterChange(show_rides.value, !show_runs.value, show_hikes.value);
+    onFilterChange(show_rides.value, !show_runs.value, show_hikes.value, distance_filter.value);
 }
 
 function onFilterHikes() {
     if (!isAtLeastOneActivityTypeSelected(show_runs.value, show_rides.value, !show_hikes.value)) {
         show_hikes.value = !show_hikes.value;
     }
-  
-    onFilterChange(show_rides.value, show_runs.value, !show_hikes.value);
+
+    onFilterChange(show_rides.value, show_runs.value, !show_hikes.value, distance_filter.value);
+}
+
+function onDistanceFilterChanged() {
+    onFilterChange(show_rides.value, show_runs.value, show_hikes.value, distance_filter.value);
 }
 
 </script>
@@ -107,31 +114,37 @@ function onFilterHikes() {
         <div v-if="activities?.length && shouldHaveFilter" class="btn-group route_type_buttons"
             :class="{ 'route_type_buttons_mobile': isMobile() }"
             style="display: flex; justify-content: flex-end; border-radius: 50rem;" role="group">
-            
+
             <input v-model="show_rides" type="checkbox" class="btn-check" id="checkfilterRides" autocomplete="off">
-            <label v-on:click="onFilterRides" class="btn btn-light route_type_button"
-                style="padding-top: 2px;" for="checkfilterRides">
-                <cycling fill="var(--color-ride)"/>
+            <label v-on:click="onFilterRides" class="btn btn-light route_type_button" style="padding-top: 2px;"
+                for="checkfilterRides">
+                <cycling fill="var(--color-ride)" />
             </label>
 
             <input v-model="show_runs" type="checkbox" class="btn-check" id="checkfilterRuns" autocomplete="off">
-            <label v-on:click="onFilterRuns" class="btn btn-light route_type_button"
-                style="padding-top: 2px;" for="checkfilterRuns">
-                <running fill="var(--color-run)"/>
+            <label v-on:click="onFilterRuns" class="btn btn-light route_type_button" style="padding-top: 2px;"
+                for="checkfilterRuns">
+                <running fill="var(--color-run)" />
             </label>
 
             <input v-model="show_hikes" type="checkbox" class="btn-check" id="checkfilterHikes" autocomplete="off">
-            <label v-on:click="onFilterHikes" class="btn btn-light route_type_button"
-                style="padding-top: 2px;" for="checkfilterHikes">
-                <hiking fill="var(--color-hikewalk)"/>
+            <label v-on:click="onFilterHikes" class="btn btn-light route_type_button" style="padding-top: 2px;"
+                for="checkfilterHikes">
+                <hiking fill="var(--color-hikewalk)" />
             </label>
+        </div>
+
+        <div v-if="activities?.length && shouldHaveFilter" class="form-floating">
+            <input type="number" class="form-control" id="distanceFltrInput" v-model="distance_filter"
+                @input="onDistanceFilterChanged()">
+            <label for="distanceFltrInput">Max km</label>
         </div>
 
         <ul class="list-group scrollable">
             <div v-if="isMobile()" style="cursor: pointer;margin-right: 2px;" v-for="activity in activities"
                 :key="activity._id">
-                <MiniActivityVue :activity-meta="activity" :id="activity._id" :selected_id="selected_id" :hovered_id="hovered_id"
-                    :filter_type="activity_type_filter" v-on:selected-activity="onSelectedActivity"
+                <MiniActivityVue :activity-meta="activity" :id="activity._id" :selected_id="selected_id"
+                    :hovered_id="hovered_id" :filter_type="activity_type_filter" v-on:selected-activity="onSelectedActivity"
                     :count_times="activity.activities.length" />
             </div>
             <div v-else style="cursor: pointer" v-for="activity in activities">
@@ -213,9 +226,11 @@ function onFilterHikes() {
 }
 
 .prevent-select {
-  -webkit-user-select: none; /* Safari */
-  -ms-user-select: none; /* IE 10 and IE 11 */
-  user-select: none; /* Standard syntax */
+    -webkit-user-select: none;
+    /* Safari */
+    -ms-user-select: none;
+    /* IE 10 and IE 11 */
+    user-select: none;
+    /* Standard syntax */
 }
-
 </style>

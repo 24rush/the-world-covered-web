@@ -25,6 +25,7 @@ var metadata = reactive<ActivityMetaData[]>([]);
 var filter_show_rides = true;
 var filter_show_runs = true;
 var filter_show_hikes = true;
+var filter_distance = 400;
 
 var statistics = ref<HistoryStatistics>(new HistoryStatistics());
 var gpt_chart_data = ref<any>(null);
@@ -158,7 +159,7 @@ onMounted(async () => {
 
                 datahandler.execute(current_route_type.value, query, (metadata_for_route: ActivityMetaData) => {
                     store_metadata(metadata_for_route);
-                    map.register_polyline(metadata_for_route._id, metadata_for_route.polyline, is_route_type_visible(metadata_for_route.type),
+                    map.register_polyline(metadata_for_route._id, metadata_for_route.polyline, is_route_visible(metadata_for_route),
                         map.getStyleForSegmentType(metadata_for_route.type));
                 }, () => {
                     // Unique routes have no limit
@@ -202,7 +203,7 @@ function onActivityUnselected(resource_id: DocumentId) {
     selected_activity.value = new ActivityMetaData();
     selected_seg_id = 0;
 
-    show_all_filtered(filter_show_rides, filter_show_runs, filter_show_hikes);
+    show_all_filtered(filter_show_rides, filter_show_runs, filter_show_hikes, filter_distance);
 }
 
 function generate_segment_polylines(activityMetadata: ActivityMetaData) {
@@ -349,17 +350,23 @@ function onSettingsClicked(resource_id: DocumentId) {
     }
 }
 
-function onFilterChange(show_rides: boolean, show_runs: boolean, show_hikes: boolean) {
+function onFilterChange(show_rides: boolean, show_runs: boolean, show_hikes: boolean, max_distance: number) {
     filter_show_rides = show_rides;
     filter_show_runs = show_runs;
     filter_show_hikes = show_hikes;
+    filter_distance = max_distance;
 
     onActivityUnselected(selected_activity.value._id);
-    show_all_filtered(show_rides, show_runs, show_hikes);
+    show_all_filtered(show_rides, show_runs, show_hikes, max_distance);
 }
 
-function show_all_filtered(show_rides: boolean, show_runs: boolean, show_hikes: boolean) {
-    metadata.forEach((act) => {
+function show_all_filtered(show_rides: boolean, show_runs: boolean, show_hikes: boolean, max_distance: number) {
+    metadata.forEach((act) => {        
+        if (act.distance / 1000 > max_distance) {
+            map.hide_only(act._id);
+            return;
+        }
+
         if (act.type.includes("Ride"))
             show_rides ? map.show_only(act._id) : map.hide_only(act._id);
         if (act.type.includes("Run"))
@@ -417,6 +424,9 @@ function find_activity_closest_to(point: LatLng): ActivityMetaData | undefined {
     let closest_act: ActivityMetaData | undefined = undefined;
 
     metadata.forEach((act) => {
+        if (!is_route_visible(act))
+            return;
+            
         if (act.coords && act.coords_center.lat == 0 && act.coords_center.lng == 0)
             act.coords_center = act.coords.getCenter();
 
@@ -439,11 +449,12 @@ function store_metadata(meta: ActivityMetaData) {
     metadata_index.set(meta._id, meta);
 }
 
-function is_route_type_visible(type: String) {
-    if (type.toLowerCase().includes("ride") && filter_show_rides) return true;
-    if (type.toLowerCase().includes("run") && filter_show_runs) return true;
-    if (type.toLowerCase().includes("hike") && filter_show_hikes) return true;
-    if (type.toLowerCase().includes("walk") && filter_show_hikes) return true;
+function is_route_visible(meta: ActivityMetaData) {
+    if (meta.distance / 1000 > filter_distance) return false;
+    if (meta.type.toLowerCase().includes("ride") && filter_show_rides) return true;
+    if (meta.type.toLowerCase().includes("run") && filter_show_runs) return true;
+    if (meta.type.toLowerCase().includes("hike") && filter_show_hikes) return true;
+    if (meta.type.toLowerCase().includes("walk") && filter_show_hikes) return true;
 
     return false;
 }
@@ -454,7 +465,7 @@ function on_new_activity_retrieved(activityMetadata: ActivityMetaData) {
     });
 
     if (activityMetadata.polyline) {
-        let is_route_added_to_map = is_route_type_visible(activityMetadata.type);
+        let is_route_added_to_map = is_route_visible(activityMetadata);
         let coords = map.register_polyline(activityMetadata.master_activity_id, activityMetadata.polyline, is_route_added_to_map,
             map.getStyleForSegmentType(activityMetadata.type));
 
@@ -480,9 +491,9 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
 
     let highlight_new_item_received = () => {
         if (metadata.length) {
-            if (current_page == 0 && is_route_type_visible(metadata[0].type))
+            if (current_page == 0 && is_route_visible(metadata[0]))
                 onActivitySelected(metadata[0]._id);
-            else if (is_route_type_visible(metadata[metadata.length - 1].type))
+            else if (is_route_visible(metadata[metadata.length - 1]))
                 setTimeout(() => { bring_activity_into_view(metadata[metadata.length - 1]._id); });
         }
     }
@@ -495,7 +506,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
             let first_item = true;
             datahandler.execute(type, query, (metadata_for_route: ActivityMetaData) => {
                 store_metadata(metadata_for_route);
-                let is_route_added_to_map = is_route_type_visible(metadata_for_route.type);
+                let is_route_added_to_map = is_route_visible(metadata_for_route);
                 map.register_polyline(metadata_for_route._id, metadata_for_route.polyline,
                     is_route_added_to_map,
                     map.getStyleForSegmentType(metadata_for_route.type));
