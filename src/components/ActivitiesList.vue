@@ -104,6 +104,9 @@ function onFilterHikes() {
 }
 
 function onDistanceFilterChanged() {
+    if (!distance_filter.value)
+        distance_filter.value = 400;
+
     onFilterChange(show_rides.value, show_runs.value, show_hikes.value, distance_filter.value);
 }
 

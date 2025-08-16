@@ -74,7 +74,7 @@ var is_downloading_routes = ref(false);
 var quick_queries_opened = ref(false);
 
 // Bucharest
-var capitalCityLocation = new LatLng(45.12619, 25.73496);
+var capitalCityLocation = new LatLng(44.43225, 26.10626);
 
 onMounted(async () => {
     // Wake up vercel if in production
@@ -127,20 +127,10 @@ onMounted(async () => {
             onActivityUnselected(selected_activity.value._id);
     })
 
-    let update_radiuses_from_bounds = (bounds: LatLngBounds): boolean => {
-        let dist_from_capital = calcCrow(bounds.getNorthWest(), capitalCityLocation);
-
-        if (dist_from_capital / 100 > radius_end) {
-            radius_start = radius_end;
-            radius_end = Math.ceil(dist_from_capital / 100);
-
-            return true;
-        }
-
-        return false;
-    };
-
+    // Callback on map move so that we can bring new Routes in view
     map.register_map_centered_at_cbk((new_center: LatLng, bounds: LatLngBounds) => {
+        onMapMovedTo(new_center);
+
         if (selected_activity.value._id == 0 && metadata && metadata.length > 0) {
             // If no activity is selected then move to closest one
             let closest_act = find_activity_closest_to(new_center);
@@ -169,20 +159,98 @@ onMounted(async () => {
         }
     });
 
-    map.center_at_latlng(capitalCityLocation);
+    let map_center = capitalCityLocation;
+    let should_pan_to_first_item = true;
+
+    let center = getUrlParam("center");
+
+    if (center) {
+        let latLng = center.split(',');
+        if (latLng.length > 1) {
+            map_center = new LatLng(parseFloat(latLng[0]), parseFloat(latLng[1]));
+            map.center_at_latlng(map_center);
+            update_radiuses_from_bounds(map.getBounds());
+
+            should_pan_to_first_item = false;
+        }
+    }
+
+    map.center_at_latlng(map_center);
+
+    let type = RouteTypes.Unique as string;
 
     // Verify if we have a special URL
     // 1. actid=<>
-    let act_id = (new URL(window.location.href)).searchParams.get("actid");
-    if (act_id) {
-        // Send it to center in case activity id does not exist        
-        onRouteTypeRequested("activity_id", parseInt(act_id));
+    let act_id = 0;
+    let actid_value = getUrlParam("actid");
+    if (actid_value) {
+        // Send it to center in case activity id does not exist
+        act_id = parseInt(actid_value);
+        type = "activity_id";
     }
-    else {
-        update_radiuses_from_bounds(map.getBounds());
-        onRouteTypeRequested(RouteTypes.Unique);
+
+    if (set_current_route_type(type)) {
+        reset_routes(should_pan_to_first_item);
+        query_gen.set_query_for_type(type, radius_start, radius_end);
+        retrieve_query_type(type, act_id != 0 ? act_id : undefined, should_pan_to_first_item);
     }
 })
+
+function onMapMovedTo(new_center: LatLng) {
+    if (!(new URL(window.location.href)).searchParams.get("actid")) {        
+        setUrlParam("center", new_center.lat.toFixed(7) + "%2C" + new_center.lng.toFixed(7));
+    }
+}
+
+function removeSearchParam(param: string) {
+    let url = (new URL(window.location.href));
+    url.searchParams.delete(param);
+    window.history.replaceState(null, "", url);
+}
+
+function getUrlParam(param: string) {
+    return (new URL(window.location.href)).searchParams.get(param);
+}
+
+function setUrlParam(param: string, value: string) {
+    if (!window.history.replaceState)
+        return;
+    
+    window.history.replaceState(null, "", "?" + param + "=" + value);    
+}
+
+function update_radiuses_from_bounds(bounds: LatLngBounds): boolean {
+    let radiuses_changed = false;
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+
+    const nw = L.latLng(ne.lat, sw.lng);
+    const se = L.latLng(sw.lat, ne.lng);
+
+    let max_dist_from_capital = Math.max(calcCrow(sw, capitalCityLocation),
+        calcCrow(ne, capitalCityLocation),
+        calcCrow(nw, capitalCityLocation),
+        calcCrow(se, capitalCityLocation));
+
+    let min_dist_from_capital = Math.min(calcCrow(sw, capitalCityLocation),
+        calcCrow(ne, capitalCityLocation),
+        calcCrow(nw, capitalCityLocation),
+        calcCrow(se, capitalCityLocation));
+
+    let new_radius_end = Math.ceil(max_dist_from_capital / 100);
+    if (new_radius_end != radius_end) {
+        radius_end = new_radius_end;
+        radiuses_changed = true;
+    }
+
+    let new_radius_start = Math.floor(min_dist_from_capital / 100);
+    if (new_radius_start != radius_start) {
+        radius_start = new_radius_start;
+        radiuses_changed = true;
+    }
+
+    return radiuses_changed;
+};
 
 function bring_activity_into_view(resource_id: number) {
     document.getElementById("activity_" + resource_id)?.parentElement?.scrollIntoView(true);
@@ -204,6 +272,7 @@ function onActivityUnselected(resource_id: DocumentId) {
     selected_seg_id = 0;
 
     show_all_filtered(filter_show_rides, filter_show_runs, filter_show_hikes, filter_distance);
+    removeSearchParam("actid");
 }
 
 function generate_segment_polylines(activityMetadata: ActivityMetaData) {
@@ -250,7 +319,8 @@ async function onActivitySelected(resource_id: DocumentId) {
         if (metadata_for_resource) {
             generate_segment_polylines(metadata_for_resource);
             //highlight_first_segment(metadata_for_resource);
-        }
+            setUrlParam("actid", metadata_for_resource?.master_activity_id.toString());
+        }        
     };
 
     let curr_selected_activity_id = selected_activity.value._id;
@@ -361,7 +431,7 @@ function onFilterChange(show_rides: boolean, show_runs: boolean, show_hikes: boo
 }
 
 function show_all_filtered(show_rides: boolean, show_runs: boolean, show_hikes: boolean, max_distance: number) {
-    metadata.forEach((act) => {        
+    metadata.forEach((act) => {
         if (act.distance / 1000 > max_distance) {
             map.hide_only(act._id);
             return;
@@ -400,7 +470,7 @@ function hover_polyline_of_id(id: number, hover: boolean) {
     hover ? map.highlight_elem_id(id) : map.unhighlight_elem_id(id);
 }
 
-function calcCrow(a: LatLngMeta, b: LatLngMeta) {
+function calcCrow(a: LatLngMeta | LatLng, b: LatLngMeta | LatLng) {
     var R = 6371; // km
     var dLat = toRad(b.lat - a.lat);
     var dLon = toRad(b.lng - a.lng);
@@ -426,7 +496,7 @@ function find_activity_closest_to(point: LatLng): ActivityMetaData | undefined {
     metadata.forEach((act) => {
         if (!is_route_visible(act))
             return;
-            
+
         if (act.coords && act.coords_center.lat == 0 && act.coords_center.lng == 0)
             act.coords_center = act.coords.getCenter();
 
@@ -478,11 +548,15 @@ function on_new_activity_retrieved(activityMetadata: ActivityMetaData) {
     store_metadata(activityMetadata);
 }
 
-function set_current_route_type(type: string) {
+function set_current_route_type(type: string): boolean {
+    if (current_route_type.value == type)
+        return false;
+
     current_route_type.value = type;
+    return true;
 }
 
-async function retrieve_query_type(type: string, activity_id?: DocumentId) {
+async function retrieve_query_type(type: string, activity_id?: DocumentId, center_view: boolean = true) {
     searchQuery.value = "";
     is_on_statistics_page.value = false;
     is_in_search_context.value = false;
@@ -510,7 +584,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                 map.register_polyline(metadata_for_route._id, metadata_for_route.polyline,
                     is_route_added_to_map,
                     map.getStyleForSegmentType(metadata_for_route.type));
-                if (first_item && is_route_added_to_map) {
+                if (first_item && is_route_added_to_map && center_view) {
                     map.center_view(metadata_for_route._id);
                     first_item = false;
                 }
@@ -519,6 +593,7 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                 // Unique routes have no limit as we are looking for new routes as the map moves
                 has_more_data.value = type == RouteTypes.Unique ? false : (noItems == query_gen.get_results_per_page());
                 is_downloading_routes.value = false;
+                is_loading_page.value = false;
             });
             break;
         }
@@ -563,6 +638,9 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
                     return;
 
                 on_new_activity_retrieved(activityMetaData);
+                if (type == "activity_id" && activity_id) {
+                    map.zoom_to(activity_id, true);
+                }
                 is_loading_page.value = false;
             }, (noItems: number) => {
                 has_more_data.value = noItems == query_gen.get_results_per_page();
@@ -574,12 +652,15 @@ async function retrieve_query_type(type: string, activity_id?: DocumentId) {
     }
 }
 
-function reset_routes() {
+function reset_routes(reset_radiuses: boolean = true) {
     // Cleares all state data except for statistics which are readonly
     metadata.splice(0)
     metadata_index.clear();
-    radius_start = 0;
-    radius_end = 1;
+
+    if (reset_radiuses) {
+        radius_start = 0;
+        radius_end = 1;
+    }
     map.clear_all();
 
     current_page = 0;
@@ -595,14 +676,16 @@ function reset_routes() {
     errorToast.hide();
 }
 
-async function onRouteTypeRequested(type: string, activity_id?: DocumentId) {
+async function onRouteTypeRequested(type: string, activity_id?: DocumentId, center_view: boolean = true) {
     if (current_route_type.value == type)
         return;
+
+    removeSearchParam("actid");
 
     reset_routes();
     query_gen.set_query_for_type(type, radius_start, radius_end);
     set_current_route_type(type);
-    retrieve_query_type(type, activity_id);
+    retrieve_query_type(type, activity_id, center_view);
 }
 
 function onSegmentEffortsRequested(activity: Activity, seg_id: number) {
@@ -949,8 +1032,8 @@ async function onSearchRequest() {
 <style>
 :root {
     --color-ride: #fc5200;
-    --color-hikewalk: #b2ff66;
-    --color-run: #2de5d6;
+    --color-hikewalk: #b22b3f;
+    --color-run: #2AACB6;
 }
 
 #map {

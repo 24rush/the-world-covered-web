@@ -31,10 +31,16 @@ const shouldShow = computed(() => {
     let filter_tokens = props.filter_type?.split('|');
 
     filter_tokens?.forEach(token => {
+        let max_distance = parseInt(token);
+
+        if (!isNaN(max_distance)) {
+            if (props.activityMeta.distance / 1000 > max_distance)
+                shouldShow = false;
+        }
+
         if (token && props.activityMeta.type.toLowerCase().includes(token)) {
             shouldShow = false;
         }
-
     });
 
     return shouldShow;

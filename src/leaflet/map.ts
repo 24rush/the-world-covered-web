@@ -104,10 +104,12 @@ export default class LeafletMap {
         this.map.setView(latlng, 12);
     }
 
-    public zoom_to(elem_id: number) {
+    public zoom_to(elem_id: number, fitBounds: boolean = false) {
         this.do_with_elem_id(elem_id, (id, polyline) => {
             this.map.panTo((polyline.getLatLngs() as LatLng[])[0]);
-            //this.map.fitBounds(polyline.getBounds());
+
+            if (fitBounds)
+                this.map.fitBounds(polyline.getBounds());
         });
     }
 
@@ -121,6 +123,10 @@ export default class LeafletMap {
             this.map.setView(polyline.getCenter(), 10);
         });
         this.last_centered_on_item_id = elem_id;
+    }
+
+    public pan_to(latLng: LatLng) {
+        this.map.panTo(latLng);
     }
 
     public register_polyline(id: number, polyline: string, is_visible_on_map: boolean, style?: any): L.Polyline {
@@ -252,14 +258,14 @@ export default class LeafletMap {
         if (type.includes("Run")) {
             return {
                 "weight": Style_Poly_Default_Weight,
-                "color": "#2de5d6".toString()
+                "color": "#2AACB6".toString()
             };    
         }
 
         if (type.includes("Hike") || type.includes("Walk")) {
             return {
                 "weight": Style_Poly_Default_Weight,
-                "color": "#b2ff66".toString()
+                "color": "#b22b3f".toString()
             };    
         }
 
