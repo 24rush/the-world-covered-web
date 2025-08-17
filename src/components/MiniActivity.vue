@@ -95,7 +95,7 @@ function country_formatter(country: String): String {
             </div>
 
             <div>
-                <span style="vertical-align: middle;margin-right: 0.5em;">
+                <span style="vertical-align: middle;margin-right: 1em;">
                     <running v-if="activityMeta.type.toLowerCase().includes('run')" />
                     <cycling v-if="activityMeta.type.toLowerCase().includes('ride')" />
                     <hiking

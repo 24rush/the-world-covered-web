@@ -171,7 +171,7 @@ function onDistanceFilterChanged() {
 
 <style>
 .routeList {
-    right: 0.5em;
+    right: 0.25em;
     top: 7.5em;
     width: 100%;
     max-width: 300px;
@@ -180,9 +180,7 @@ function onDistanceFilterChanged() {
 }
 
 .routeList-mobile {
-    right: -1em !important;
-    max-width: 100px !important;
-    padding-right: 1em;
+    max-width: 90px !important;    
     z-index: 2;
 }
 
