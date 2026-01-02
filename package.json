@@ -1,7 +1,7 @@
 {
   "name": "the-world-covered-web",
   "version": "0.0.0",
-  "private": true,  
+  "private": true,
   "scripts": {
     "dev": "vite",
     "build": "run-p type-check build-only",
@@ -14,7 +14,7 @@
     "apexcharts": "^3.40.0",
     "bootstrap": "^5.3.0-alpha3",
     "leaflet": "^1.9.3",
-    "realm-web": "^2.0.0",
+    "mongodb": "^7.0.0",
     "vue": "^3.3.2",
     "vue3-apexcharts": "^1.4.1"
   },

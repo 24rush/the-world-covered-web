@@ -1,10 +1,6 @@
 import { Activity } from "./data_types/activity";
 import { Route } from "@/data_types/route";
-import * as Realm from "realm-web";
 import type { HistoryStatistics } from "./data_types/statistics";
-const {
-    BSON: { ObjectId },
-} = Realm;
 
 interface DataRetriever {
     query_routes(query: any): Promise<Route[]>;
@@ -60,33 +56,23 @@ class LocalServer implements DataRetriever {
 }
 
 class RemoteServer implements DataRetriever {
-    private mongo: globalThis.Realm.Services.MongoDB | undefined;
-    private app = new Realm.App({ id: "application-0-mlous" });
-    private credentials = Realm.Credentials.anonymous();
-
-    public async authenticate() {
-        try {
-            if (!this.app.currentUser || !this.app.currentUser.isLoggedIn || !(this.app.currentUser.state != Realm.UserState.Active))
-                await this.app.logIn(this.credentials, false);
-
-            if (!this.mongo && this.app.currentUser) {
-                this.mongo = this.app.currentUser.mongoClient("mongodb-atlas");
-            }
-        } catch (err) {
-            console.error("Failed to log in", err);
-        }
-    }
+    private readonly THE_WORLD_COVERED_URL = "https://the-world-covered.vercel.app/api/mongodbaccess";
 
     async query(database: string, collection: string, query: any) {
-        await this.authenticate();
+        let result = fetch(this.THE_WORLD_COVERED_URL, {
+            mode: 'cors',
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                'dbName': database,
+                'collectionName': collection,
+                'pipeline': query
+            }),
+        });
 
-        const coll = this.mongo?.db(database).collection(collection);
-
-        if (coll)
-            return await coll.aggregate(query);
-
-        return [];
-
+        return (await result).json();
     }
 
     async query_routes(query: any): Promise<Route[]> {
