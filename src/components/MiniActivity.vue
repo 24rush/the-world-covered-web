@@ -95,7 +95,7 @@ function country_formatter(country: String): String {
             </div>
 
             <div>
-                <span style="vertical-align: middle;margin-right: 1em;">
+                <span style="vertical-align: middle;margin-right: 0.2em;">
                     <running v-if="activityMeta.type.toLowerCase().includes('run')" />
                     <cycling v-if="activityMeta.type.toLowerCase().includes('ride')" />
                     <hiking
@@ -122,17 +122,19 @@ function country_formatter(country: String): String {
     padding-top: 1px;
     margin-top: 1px;
     padding-bottom: 4px;
+    width: 60px; /* Fixed width for horizontal scrolling */
+    flex-shrink: 0;
 }
 
 .stats-item {
-    font-weight: 300;
+    font-weight: 300;    
 }
 
 .list-group-item-selected-mobile {
-    border-width: 0px 0px 0px 3px;
+    border-width: 0px 0px 3px 0px;
     border-color: #fd7e148c;
 
-    transform: translateX(0px);
+    transform: translateY(-2px);
     transition: transform .2s;
 
     background-color: bisque !important;
@@ -151,9 +153,9 @@ function country_formatter(country: String): String {
 }
 
 .list-group-item-hover-mobile {    
-    border-width: 0px 0px 0px 3px;
+    border-width: 0px 0px 3px 0px;
 
-    transform: translateX(0px);
+    transform: translateY(4px);
     transition: transform .2s;
 
     background-color: aliceblue !important;

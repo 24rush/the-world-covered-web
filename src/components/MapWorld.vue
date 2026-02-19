@@ -896,7 +896,7 @@ async function onSearchRequest() {
         <div class="spinner-border" role="status" style="margin: auto;">
             <span class="visually-hidden">Loading...</span>
         </div>
-        <span style="margin:auto">Warming up the horses</span>
+        <span style="margin:auto">Fetching routes...</span>
     </div>
 
     <ActivitiesList class="absolute" v-bind:activities="metadata" v-bind:has_more_data="has_more_data"
@@ -906,7 +906,7 @@ async function onSearchRequest() {
         v-on:filterChange="onFilterChange">
     </ActivitiesList>
 
-    <div class="absolute menu-bar" style="margin-top: 4em; display: flex; flex-wrap: wrap; height: 200px;">
+    <div class="absolute menu-bar" style="display: flex; flex-wrap: wrap; top: 2.5em; height: 40px;">
         <div class="input-group mb-2 rounded-pill" style="display: none;">
             <input type="text" v-model="searchQuery" class="form-control" placeholder="Search my activities using AI"
                 @keyup.enter.native="onSearchRequest" aria-describedby="button-addon2" :disabled="is_search_query_ongoing"
@@ -1067,7 +1067,7 @@ async function onSearchRequest() {
 .menu-bar {
     width: 90%;
 
-    z-index: 0;
+    z-index: 1;
     top: 4em;
     left: 50%;
     transform: translate(-50%, -50%);

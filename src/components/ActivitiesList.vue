@@ -104,47 +104,16 @@ function onFilterHikes() {
 }
 
 function onDistanceFilterChanged() {
-    if (!distance_filter.value)
-        distance_filter.value = 400;
-
-    onFilterChange(show_rides.value, show_runs.value, show_hikes.value, distance_filter.value);
+    onFilterChange(show_rides.value, show_runs.value, show_hikes.value, distance_filter.value ?? 0);
 }
 
 </script>
 
 <template>
-    <div class="routeList prevent-select" :class="{ 'routeList-mobile': isMobile() }">
-        <div v-if="activities?.length && shouldHaveFilter" class="btn-group route_type_buttons"
-            :class="{ 'route_type_buttons_mobile': isMobile() }"
-            style="display: flex; justify-content: flex-end; border-radius: 50rem;" role="group">
-
-            <input v-model="show_rides" type="checkbox" class="btn-check" id="checkfilterRides" autocomplete="off">
-            <label v-on:click="onFilterRides" class="btn btn-light route_type_button" style="padding-top: 2px;"
-                for="checkfilterRides">
-                <cycling fill="var(--color-ride)" />
-            </label>
-
-            <input v-model="show_runs" type="checkbox" class="btn-check" id="checkfilterRuns" autocomplete="off">
-            <label v-on:click="onFilterRuns" class="btn btn-light route_type_button" style="padding-top: 2px;"
-                for="checkfilterRuns">
-                <running fill="var(--color-run)" />
-            </label>
-
-            <input v-model="show_hikes" type="checkbox" class="btn-check" id="checkfilterHikes" autocomplete="off">
-            <label v-on:click="onFilterHikes" class="btn btn-light route_type_button" style="padding-top: 2px;"
-                for="checkfilterHikes">
-                <hiking fill="var(--color-hikewalk)" />
-            </label>
-        </div>
-
-        <div v-if="activities?.length && shouldHaveFilter" class="form-floating">
-            <input type="number" class="form-control" id="distanceFltrInput" v-model="distance_filter"
-                @input="onDistanceFilterChanged()">
-            <label for="distanceFltrInput">Max km</label>
-        </div>
+    <div class="routeList prevent-select" :class="{ 'd-flex': isMobile(), 'routeList-mobile': isMobile() }">
 
         <ul class="list-group scrollable">
-            <div v-if="isMobile()" style="cursor: pointer;margin-right: 2px;" v-for="activity in activities"
+            <div v-if="isMobile()" class="d-flex" v-for="activity in activities"
                 :key="activity._id">
                 <MiniActivityVue :activity-meta="activity" :id="activity._id" :selected_id="selected_id"
                     :hovered_id="hovered_id" :filter_type="activity_type_filter" v-on:selected-activity="onSelectedActivity"
@@ -166,6 +135,35 @@ function onDistanceFilterChanged() {
                 </div>
             </li>
         </ul>
+        
+        <div v-if="activities?.length && shouldHaveFilter" class="btn-group route_type_buttons"
+            :class="{ 'route_type_buttons_mobile': isMobile() }"
+            style="border-radius: 50rem;margin-top: 0.5em;" role="group">
+
+            <input v-model="show_rides" type="checkbox" class="btn-check" id="checkfilterRides" autocomplete="off">
+            <label v-on:click="onFilterRides" class="btn btn-light route_type_button" style="padding-top: 2px;"
+                for="checkfilterRides">
+                <cycling fill="var(--color-ride)" />
+            </label>
+
+            <input v-model="show_runs" type="checkbox" class="btn-check" id="checkfilterRuns" autocomplete="off">
+            <label v-on:click="onFilterRuns" class="btn btn-light route_type_button" style="padding-top: 2px;"
+                for="checkfilterRuns">
+                <running fill="var(--color-run)" />
+            </label>
+
+            <input v-model="show_hikes" type="checkbox" class="btn-check" id="checkfilterHikes" autocomplete="off">
+            <label v-on:click="onFilterHikes" class="btn btn-light route_type_button" style="padding-top: 1px;"
+                for="checkfilterHikes">
+                <hiking fill="var(--color-hikewalk)" />
+            </label>
+        </div>
+
+        <div v-if="activities?.length && shouldHaveFilter" class="form-floating route_type_buttons">
+            <input type="number" class="form-control" id="distanceFltrInput" v-model="distance_filter"
+                @input="onDistanceFilterChanged()">
+            <label for="distanceFltrInput">Max km</label>
+        </div>                
     </div>
 </template>
 
@@ -176,13 +174,45 @@ function onDistanceFilterChanged() {
     width: 100%;
     max-width: 300px;
     height: 72%;
-    z-index: 2;
+    z-index: 0;
 }
 
 .routeList-mobile {
-    max-width: 90px !important;    
-    z-index: 2;
+    max-width: none !important;
+    width: 100% !important;
+    height: auto;
+    left: 0 !important;
+    top: 4em !important;
+    display: flex !important;
+    flex-direction: column !important;   
+    padding: 0.2em; 
+    align-items: flex-end;
 }
+
+.routeList-mobile .scrollable {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    width: 100% !important;    
+    padding-bottom: 5px;
+}
+
+.routeList-mobile .list-group-item {
+    border-radius: 4px !important;
+    margin-right: 2px;
+}
+
+.route_type_buttons {
+    width: 100% !important;        
+    margin-top: 0.3em;
+}
+
+.routeList-mobile .route_type_buttons {
+    width: 25% !important;    
+    margin-top: 0.5em;
+}
+
 
 .scrollable {
     overflow-y: auto;
@@ -202,23 +232,15 @@ function onDistanceFilterChanged() {
 }
 
 .scroll_more_items_container-mobile {
-    margin: 0;
     padding: 0.25em !important;
-    border-radius: 50px !important;
+    border-radius: 10px !important;
     border: none;
-    height: 50px;
-    width: 50px;
-}
-
-.route_type_buttons {
-    width: 50%;
-    margin: auto;
-    margin-bottom: 5px;
-    background: white;
-}
-
-.route_type_buttons_mobile {
-    width: 100% !important;
+    height: 100%;
+    width: 40px;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .route_type_button {
